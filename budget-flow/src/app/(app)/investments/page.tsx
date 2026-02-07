@@ -111,13 +111,13 @@ export default function InvestmentsPage() {
 
     // Calculate monthly surplus
     const monthlySurplus = useMemo(() => {
-        const totalExpenses = categories.reduce((sum, cat) => sum + cat.budgeted, 0);
+        const totalExpenses = categories.reduce((sum, cat) => sum + cat.amount, 0);
         return income - totalExpenses;
     }, [income, categories]);
 
     const hasSurplus = monthlySurplus > 0;
     const emergencyFundTarget = useMemo(() => {
-        const monthlyExpenses = categories.reduce((sum, cat) => sum + cat.budgeted, 0);
+        const monthlyExpenses = categories.reduce((sum, cat) => sum + cat.amount, 0);
         return monthlyExpenses * 6; // 6 months of expenses
     }, [categories]);
 
@@ -210,7 +210,7 @@ export default function InvestmentsPage() {
                     {/* AI Recommendation */}
                     <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-border-main rounded-xl p-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-48 h-48 bg-accent-purple/10 rounded-full blur-3xl -mr-24 -mt-24 pointer-events-none" />
-                        
+
                         <div className="flex items-center gap-3 mb-6 relative z-10">
                             <div className="p-2 bg-gradient-to-br from-accent-purple to-accent-blue rounded-lg">
                                 <Sparkles className="w-5 h-5 text-white" />
@@ -227,7 +227,7 @@ export default function InvestmentsPage() {
                                 <span className="text-accent-purple font-mono text-sm">{strategy.allocation}</span>
                             </div>
                             <p className="text-text-primary">
-                                With <span className="text-accent-green font-bold">${monthlySurplus.toLocaleString()}/month</span>, 
+                                With <span className="text-accent-green font-bold">${monthlySurplus.toLocaleString()}/month</span>,
                                 {riskLevel === "conservative" && " prioritize building your emergency fund and safe, liquid savings."}
                                 {riskLevel === "moderate" && " balance between growth investments and safe savings."}
                                 {riskLevel === "aggressive" && " focus on growth while maintaining a basic emergency fund."}

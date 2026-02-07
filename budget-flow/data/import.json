@@ -1,0 +1,27 @@
+{
+    "user": {
+        "email": "demo@example.com",
+        "name": "Demo User",
+        "monthlyIncome": 5000
+    },
+    "transactions": [
+        {
+            "date": "2026-02-07",
+            "merchant": "Whole Foods",
+            "amount": 142.50,
+            "category": "Groceries"
+        },
+        {
+            "date": "2026-02-06",
+            "merchant": "Netflix",
+            "amount": 15.99,
+            "category": "Entertainment"
+        },
+        {
+            "date": "2026-02-05",
+            "merchant": "Shell Gas",
+            "amount": 45.00,
+            "category": "Transportation"
+        }
+    ]
+}
