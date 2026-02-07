@@ -1,4 +1,4 @@
-import Sidebar from "@/components/Sidebar";
+import AppShell from "@/components/AppShell";
 
 export default function AppLayout({
   children,
@@ -7,8 +7,7 @@ export default function AppLayout({
 }) {
   return (
     <div className="flex">
-      <Sidebar />
-      <main className="ml-64 flex-1 min-h-screen">{children}</main>
+      <AppShell>{children}</AppShell>
     </div>
   );
 }
