@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   GitBranch,
   BarChart3,
+  TrendingUp,
   LogOut,
   Wallet,
   PanelLeftClose,
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/dashboard", label: "Budget Flow", icon: LayoutDashboard },
   { href: "/strategy", label: "Strategy", icon: GitBranch },
   { href: "/statistics", label: "Statistics", icon: BarChart3 },
+  { href: "/investments", label: "Investments", icon: TrendingUp },
 ];
 
 interface SidebarProps {
@@ -32,9 +34,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-bg-secondary border-r border-border-main flex flex-col z-50 transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
-      }`}
+      className={`fixed left-0 top-0 h-screen bg-bg-secondary border-r border-border-main flex flex-col z-50 transition-all duration-300 ${collapsed ? "w-16" : "w-64"
+        }`}
     >
       {/* Logo */}
       <div className="p-4 border-b border-border-main flex items-center justify-between">
@@ -81,13 +82,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               key={item.href}
               href={item.href}
               title={collapsed ? item.label : undefined}
-              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 ${
-                collapsed ? "justify-center" : ""
-              } ${
-                isActive
+              className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-200 ${collapsed ? "justify-center" : ""
+                } ${isActive
                   ? "bg-accent-green/10 text-accent-green border border-accent-green/20"
                   : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
-              }`}
+                }`}
             >
               <Icon className="w-5 h-5 flex-shrink-0" />
               {!collapsed && <span className="font-medium">{item.label}</span>}
@@ -109,7 +108,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             ) : (
               <Moon className="w-5 h-5 flex-shrink-0" />
             )}
-          {!collapsed && <span className="font-medium">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+            {!collapsed && <span className="font-medium">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
           </button>
         </div>
       )}
