@@ -354,12 +354,12 @@ function formatLocalDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-// Generate mock daily spending for the past 150 days (to cover 3+ full months shown in heatmap)
+// Generate mock daily spending for the past 365 days (to cover 12 months shown in heatmap)
 export function generateDailySpending(): DailySpending[] {
   const data: DailySpending[] = [];
   const today = new Date();
   
-  for (let i = 149; i >= 0; i--) {
+  for (let i = 364; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(date.getDate() - i);
     const dateStr = formatLocalDate(date);

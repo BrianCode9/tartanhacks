@@ -21,15 +21,12 @@ const EVENT_COLORS: Record<string, string> = {
   other: "bg-accent-teal",
 };
 
-// Use absolute thresholds for spending colors (not relative to max)
-// Based on a reasonable daily budget of ~$100
+// Use absolute thresholds for spending colors
+// Simple 3-color scheme: green (low), yellow (medium), red (high)
 function getIntensityColor(amount: number): string {
-  if (amount === 0) return "bg-accent-green/30";     // No spending - light green (good!)
-  if (amount < 50) return "bg-accent-green/50";      // Very low - green
-  if (amount < 100) return "bg-accent-green/80";     // Low - darker green  
-  if (amount < 150) return "bg-accent-yellow/60";    // Moderate - yellow
-  if (amount < 250) return "bg-accent-yellow/90";    // High - orange/yellow
-  return "bg-accent-red/80";                          // Very high - red
+  if (amount < 100) return "bg-emerald-500";    // Low spending - green
+  if (amount < 200) return "bg-yellow-600";     // Medium spending - muted yellow
+  return "bg-rose-500";                          // High spending - red
 }
 
 function getEventColor(category: string): string {
@@ -37,21 +34,15 @@ function getEventColor(category: string): string {
 }
 
 function getIntensityLabel(amount: number): string {
-  if (amount === 0) return "No spending - great!";
-  if (amount < 50) return "Very low";
   if (amount < 100) return "Low";
-  if (amount < 150) return "Moderate";
-  if (amount < 250) return "High";
-  return "Very high";
+  if (amount < 200) return "Medium";
+  return "High";
 }
 
 function getIntensityTextColor(amount: number): string {
-  if (amount === 0) return "text-accent-green";      // $0 is good!
-  if (amount < 50) return "text-accent-green";
-  if (amount < 100) return "text-accent-green";
-  if (amount < 150) return "text-accent-yellow";
-  if (amount < 250) return "text-accent-yellow";
-  return "text-accent-red";
+  if (amount < 100) return "text-emerald-500";
+  if (amount < 200) return "text-yellow-600";
+  return "text-rose-500";
 }
 
 interface DayData extends DailySpending {
@@ -83,15 +74,15 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
     return map;
   }, [events]);
 
-  // Generate months to display (past 3 months + current + next 2 months)
+  // Generate months to display (past 11 months + current = 12 months)
   const months: MonthData[] = useMemo(() => {
     const result: MonthData[] = [];
     const today = new Date();
     
-    // Start from 3 months ago
-    const startMonth = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-    // End at 2 months ahead
-    const endMonth = new Date(today.getFullYear(), today.getMonth() + 2, 1);
+    // Start from 11 months ago
+    const startMonth = new Date(today.getFullYear(), today.getMonth() - 11, 1);
+    // End at current month (no future)
+    const endMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
     const currentMonth = new Date(startMonth);
     
@@ -167,27 +158,27 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
   return (
     <div className="relative">
       {/* Month grids */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
         {months.map((monthData) => (
-          <div key={`${monthData.year}-${monthData.month}`} className="bg-bg-secondary rounded-lg p-4">
+          <div key={`${monthData.year}-${monthData.month}`} className="bg-bg-secondary rounded-lg p-2">
             {/* Month header */}
-            <h3 className="text-sm font-semibold text-text-primary mb-3 text-center">
-              {MONTH_NAMES[monthData.month]} {monthData.year}
+            <h3 className="text-xs font-semibold text-text-primary mb-2 text-center">
+              {MONTH_NAMES[monthData.month].slice(0, 3)} {monthData.year}
             </h3>
             
             {/* Day headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            <div className="grid grid-cols-7 gap-0.5 mb-1">
               {DAYS.map((day) => (
-                <div key={day} className="text-xs text-text-secondary text-center font-medium">
+                <div key={day} className="text-[10px] text-text-secondary text-center font-medium">
                   {day.slice(0, 1)}
                 </div>
               ))}
             </div>
             
             {/* Calendar grid */}
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {monthData.weeks.map((week, weekIndex) => (
-                <div key={weekIndex} className="grid grid-cols-7 gap-1">
+                <div key={weekIndex} className="grid grid-cols-7 gap-0.5">
                   {week.map((day, dayIndex) => {
                     if (!day) {
                       return <div key={dayIndex} className="w-full aspect-square" />;
@@ -205,19 +196,17 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
                       ? "text-white" 
                       : day.isFuture
                         ? "text-text-secondary"  // Future: muted text
-                        : day.amount === 0 
-                          ? "text-accent-green"  // $0 past: dark green text on light green bg
-                          : "text-white/90";     // Spending: white text on colored bg
+                        : "text-white";          // All spending days: white text on colored bg
                     
                     return (
                       <div
                         key={dayIndex}
-                        className={`w-full aspect-square rounded cursor-pointer transition-all hover:ring-2 hover:ring-text-primary/50 hover:scale-110 relative flex items-center justify-center ${bgColor}`}
+                        className={`w-full aspect-square rounded-sm cursor-pointer transition-all hover:ring-1 hover:ring-text-primary/50 hover:scale-110 relative flex items-center justify-center ${bgColor}`}
                         onMouseEnter={(e) => handleMouseEnter(day, e)}
                         onMouseLeave={() => setHoveredDay(null)}
                         onClick={() => onDayClick?.(day)}
                       >
-                        <span className={`text-xs font-medium ${textColor}`}>
+                        <span className={`text-[11px] font-bold drop-shadow-sm ${textColor}`}>
                           {day.dayOfMonth}
                         </span>
                         {day.event && (
@@ -236,28 +225,19 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 mt-6 text-sm text-text-secondary flex-wrap justify-center">
+      <div className="flex items-center gap-4 mt-4 text-xs text-text-secondary flex-wrap justify-center">
         <div className="flex items-center gap-2">
-          <span>Spending:</span>
-          <div className="flex gap-1 items-center">
-            <span className="text-xs">$0</span>
-            <div className="w-4 h-4 rounded bg-accent-green/30" title="$0" />
-            <div className="w-4 h-4 rounded bg-accent-green/50" title="< $50" />
-            <div className="w-4 h-4 rounded bg-accent-green/80" title="$50-100" />
-            <div className="w-4 h-4 rounded bg-accent-yellow/60" title="$100-150" />
-            <div className="w-4 h-4 rounded bg-accent-yellow/90" title="$150-250" />
-            <div className="w-4 h-4 rounded bg-accent-red/80" title="> $250" />
-            <span className="text-xs">$250+</span>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-emerald-500" />
+            <span>Low (&lt;$100)</span>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <span>Events:</span>
-          <div className="flex gap-1">
-            <div className="w-4 h-4 rounded bg-accent-blue" title="Vacation" />
-            <div className="w-4 h-4 rounded bg-accent-red" title="Holiday" />
-            <div className="w-4 h-4 rounded bg-accent-purple" title="Purchase" />
-            <div className="w-4 h-4 rounded bg-accent-pink" title="Event" />
-            <div className="w-4 h-4 rounded bg-accent-teal" title="Other" />
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-yellow-600" />
+            <span>Medium ($100-200)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-rose-500" />
+            <span>High ($200+)</span>
           </div>
         </div>
       </div>
