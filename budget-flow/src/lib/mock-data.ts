@@ -1,5 +1,30 @@
 import { BudgetSankeyData, SpendingCategory, MonthlySpending, MerchantSpending, DailySpending, Debt, DebtUserProfile, DebtStrategy, DebtPayoffResult, DebtPayoffScheduleItem } from "./types";
 
+export interface Transaction {
+  id: string;
+  date: string;
+  merchant: string;
+  amount: number;
+  category: string;
+  isRecurring: boolean;
+  status: "completed" | "pending";
+}
+
+export const mockTransactions: Transaction[] = [
+  { id: "t1", date: "2026-02-07", merchant: "Whole Foods", amount: 142.50, category: "Groceries", isRecurring: false, status: "completed" },
+  { id: "t2", date: "2026-02-06", merchant: "Netflix", amount: 15.99, category: "Entertainment", isRecurring: true, status: "completed" },
+  { id: "t3", date: "2026-02-05", merchant: "Shell Gas", amount: 45.00, category: "Transportation", isRecurring: false, status: "completed" },
+  { id: "t4", date: "2026-02-04", merchant: "Spotify", amount: 9.99, category: "Entertainment", isRecurring: true, status: "completed" },
+  { id: "t5", date: "2026-02-03", merchant: "Starbucks", amount: 6.50, category: "Food & Dining", isRecurring: false, status: "completed" },
+  { id: "t6", date: "2026-02-02", merchant: "Planet Fitness", amount: 24.99, category: "Health", isRecurring: true, status: "completed" },
+  { id: "t7", date: "2026-02-01", merchant: "Rent Payment", amount: 1500.00, category: "Housing", isRecurring: true, status: "completed" },
+  { id: "t8", date: "2026-01-31", merchant: "Target", amount: 85.20, category: "Shopping", isRecurring: false, status: "completed" },
+  { id: "t9", date: "2026-01-30", merchant: "Uber", amount: 22.50, category: "Transportation", isRecurring: false, status: "completed" },
+  { id: "t10", date: "2026-01-29", merchant: "Amazon", amount: 34.99, category: "Shopping", isRecurring: false, status: "completed" },
+  { id: "t11", date: "2026-01-28", merchant: "Chipotle", amount: 14.50, category: "Food & Dining", isRecurring: false, status: "completed" },
+  { id: "t12", date: "2026-01-27", merchant: "CVS Pharmacy", amount: 28.40, category: "Health", isRecurring: false, status: "completed" },
+];
+
 export const mockCategories: SpendingCategory[] = [
   {
     name: "Housing",
