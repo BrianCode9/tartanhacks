@@ -25,6 +25,7 @@ export interface BudgetData {
   merchants: MerchantSpending[];
   isLoading: boolean;
   isUsingMockData: boolean;
+  updateIncome: (income: number) => void;
   updateCategory: (name: string, amount: number) => void;
   updateSubcategory: (categoryName: string, subcategoryName: string, amount: number) => void;
 }
@@ -36,7 +37,7 @@ async function fetchNessie<T>(path: string): Promise<T> {
 }
 
 export function useBudgetData(): BudgetData {
-  const [state, setState] = useState<Omit<BudgetData, "updateCategory" | "updateSubcategory">>({
+  const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "updateCategory" | "updateSubcategory">>({
     categories: [],
     income: 0,
     monthlySpending: [],
@@ -44,6 +45,10 @@ export function useBudgetData(): BudgetData {
     isLoading: true,
     isUsingMockData: false,
   });
+
+  const updateIncome = (income: number) => {
+    setState((prev) => ({ ...prev, income }));
+  };
 
   const updateCategory = (name: string, amount: number) => {
     setState((prev) => {
@@ -159,5 +164,5 @@ export function useBudgetData(): BudgetData {
     };
   }, []);
 
-  return { ...state, updateCategory, updateSubcategory };
+  return { ...state, updateIncome, updateCategory, updateSubcategory };
 }

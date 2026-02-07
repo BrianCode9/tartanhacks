@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -15,6 +15,7 @@ import {
   useNodesState,
   useEdgesState,
   NodeMouseHandler,
+  NodeChange,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -100,9 +101,8 @@ function StrategyNode({ data }: { data: StrategyNodeData }) {
           </h3>
           {data.amount !== undefined && (
             <span
-              className={`text-xs font-bold ${
-                data.amount >= 0 ? config.iconColor : "text-accent-red"
-              }`}
+              className={`text-xs font-bold ${data.amount >= 0 ? config.iconColor : "text-accent-red"
+                }`}
             >
               {data.amount >= 0 ? "+" : ""}${Math.abs(data.amount).toLocaleString()}/mo
             </span>
@@ -168,17 +168,15 @@ function DetailCard({ data, onClose }: DetailCardProps) {
 
         {data.amount !== undefined && (
           <div
-            className={`flex items-center justify-between rounded-xl p-3 ${
-              data.amount >= 0
-                ? "bg-accent-green/10 border border-accent-green/20"
-                : "bg-accent-red/10 border border-accent-red/20"
-            }`}
+            className={`flex items-center justify-between rounded-xl p-3 ${data.amount >= 0
+              ? "bg-accent-green/10 border border-accent-green/20"
+              : "bg-accent-red/10 border border-accent-red/20"
+              }`}
           >
             <span className="text-sm text-text-secondary">Monthly Impact</span>
             <span
-              className={`text-xl font-bold ${
-                data.amount >= 0 ? "text-accent-green" : "text-accent-red"
-              }`}
+              className={`text-xl font-bold ${data.amount >= 0 ? "text-accent-green" : "text-accent-red"
+                }`}
             >
               {data.amount >= 0 ? "+" : "-"}${Math.abs(data.amount).toLocaleString()}
             </span>
@@ -206,11 +204,45 @@ interface Props {
   }[];
 }
 
+// ─── Position Persistence ────────────────────────────────────────────────────
+
+const STORAGE_KEY = "strategy-graph-node-positions";
+
+interface SavedNodePositions {
+  [nodeId: string]: { x: number; y: number };
+}
+
+function loadNodePositions(): SavedNodePositions {
+  if (typeof window === "undefined") return {};
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveNodePositions(positions: SavedNodePositions): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(positions));
+  } catch {
+    console.warn("Failed to save node positions to localStorage");
+  }
+}
+
+function extractNodePositions(nodes: Node[]): SavedNodePositions {
+  return Object.fromEntries(nodes.map((n) => [n.id, n.position]));
+}
+
 export default function StrategyGraphComponent({
   strategyNodes,
   strategyEdges,
 }: Props) {
   const [selectedNode, setSelectedNode] = useState<StrategyNodeData | null>(null);
+  const [savedPositions, setSavedPositions] = useState<SavedNodePositions>(() =>
+    loadNodePositions()
+  );
 
   const initialNodes: Node[] = useMemo(() => {
     const columns: Record<string, number> = {
@@ -223,6 +255,23 @@ export default function StrategyGraphComponent({
     const columnCounts: Record<number, number> = {};
 
     return strategyNodes.map((node) => {
+      // Use saved position if available
+      if (savedPositions[node.id]) {
+        return {
+          id: node.id,
+          type: "strategy",
+          position: savedPositions[node.id],
+          draggable: true,
+          data: {
+            label: node.label,
+            description: node.description,
+            amount: node.amount,
+            nodeType: node.type,
+          },
+        };
+      }
+
+      // Default positioning logic
       const col = columns[node.type] ?? 1;
       const count = columnCounts[col] || 0;
       columnCounts[col] = count + 1;
@@ -240,7 +289,7 @@ export default function StrategyGraphComponent({
         },
       };
     });
-  }, [strategyNodes]);
+  }, [strategyNodes, savedPositions]);
 
   const initialEdges: Edge[] = useMemo(
     () =>
@@ -266,6 +315,12 @@ export default function StrategyGraphComponent({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+
+  // Save positions whenever nodes change
+  useEffect(() => {
+    const positions = extractNodePositions(nodes);
+    saveNodePositions(positions);
+  }, [nodes]);
 
   const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     setSelectedNode(node.data as unknown as StrategyNodeData);
@@ -299,7 +354,7 @@ export default function StrategyGraphComponent({
           nodeColor={(node) => {
             const config =
               nodeTypeConfig[
-                (node.data as unknown as StrategyNodeData).nodeType || "goal"
+              (node.data as unknown as StrategyNodeData).nodeType || "goal"
               ];
             return config?.accent || "#6366f1";
           }}

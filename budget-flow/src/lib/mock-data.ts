@@ -1,4 +1,4 @@
-import { BudgetSankeyData, SpendingCategory, MonthlySpending, MerchantSpending } from "./types";
+import { BudgetSankeyData, SpendingCategory, MonthlySpending, MerchantSpending, DailySpending, PlannedEvent } from "./types";
 
 export const mockCategories: SpendingCategory[] = [
   {
@@ -77,14 +77,50 @@ export const mockCategories: SpendingCategory[] = [
 export const mockIncome = 5000;
 
 export function buildSankeyData(income: number, categories: SpendingCategory[]): BudgetSankeyData {
-  const nodes: { name: string }[] = [{ name: "Income" }];
+  // The Sankey layout is driven by link values, so we explicitly include income
+  // as a source, route spending through an "Expenses" hub, and show either
+  // "Unallocated" (income > spending) or "Debt / Shortfall" (spending > income).
+  const nodes: { name: string }[] = [];
   const links: { source: number; target: number; value: number }[] = [];
+
+  const totalSpending = categories.reduce((sum, cat) => sum + cat.amount, 0);
+
+  const incomeIndex = nodes.length;
+  nodes.push({ name: "Income" });
+
+  const expensesIndex = nodes.length;
+  nodes.push({ name: "Expenses" });
+
+  // Income funds expenses up to the smaller of the two.
+  links.push({
+    source: incomeIndex,
+    target: expensesIndex,
+    value: Math.max(0, Math.min(income, totalSpending)),
+  });
+
+  if (income > totalSpending) {
+    const unallocatedIndex = nodes.length;
+    nodes.push({ name: "Unallocated" });
+    links.push({
+      source: incomeIndex,
+      target: unallocatedIndex,
+      value: income - totalSpending,
+    });
+  } else if (totalSpending > income) {
+    const shortfallIndex = nodes.length;
+    nodes.push({ name: "Debt / Shortfall" });
+    links.push({
+      source: shortfallIndex,
+      target: expensesIndex,
+      value: totalSpending - income,
+    });
+  }
 
   // Add category nodes
   categories.forEach((cat) => {
     const catIndex = nodes.length;
     nodes.push({ name: cat.name });
-    links.push({ source: 0, target: catIndex, value: cat.amount });
+    links.push({ source: expensesIndex, target: catIndex, value: cat.amount });
 
     // Add subcategory nodes
     cat.subcategories.forEach((sub) => {
@@ -205,3 +241,118 @@ export const mockStrategyEdges = [
   { source: "essentials", target: "subscription-audit", label: "review" },
   { source: "high-spending-alert", target: "reduce-dining", label: "action needed" },
 ];
+
+// Format date to YYYY-MM-DD string (local time)
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+// Generate mock daily spending for the past 150 days (to cover 3+ full months shown in heatmap)
+export function generateDailySpending(): DailySpending[] {
+  const data: DailySpending[] = [];
+  const today = new Date();
+  
+  for (let i = 149; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    const dateStr = formatLocalDate(date);
+    const dayOfWeek = date.getDay();
+    
+    // Simulate realistic spending patterns
+    let baseAmount = 50 + Math.floor(Math.random() * 80);
+    
+    // Weekends tend to have higher spending
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      baseAmount += 30 + Math.floor(Math.random() * 50);
+    }
+    
+    // First of month (rent/bills spike)
+    if (date.getDate() === 1) {
+      baseAmount = 1500 + Math.floor(Math.random() * 300);
+    }
+    
+    // 15th (mid-month bills)
+    if (date.getDate() === 15) {
+      baseAmount += 200 + Math.floor(Math.random() * 100);
+    }
+    
+    // Some random low-spending days
+    if (Math.random() < 0.15) {
+      baseAmount = Math.floor(Math.random() * 20);
+    }
+    
+    // Some random high-spending days (events, shopping)
+    if (Math.random() < 0.08) {
+      baseAmount += 150 + Math.floor(Math.random() * 200);
+    }
+    
+    const transactions = baseAmount > 200 ? 3 + Math.floor(Math.random() * 5) : 1 + Math.floor(Math.random() * 3);
+    
+    data.push({
+      date: dateStr,
+      amount: baseAmount,
+      transactions,
+    });
+  }
+  
+  return data;
+}
+
+export const mockPlannedEvents: PlannedEvent[] = [
+  {
+    id: "1",
+    name: "Spring Break Trip",
+    date: "2026-03-15",
+    estimatedCost: 1200,
+    category: "vacation",
+    notes: "Flight + hotel for 4 nights in Miami",
+  },
+  {
+    id: "2",
+    name: "New Laptop",
+    date: "2026-02-28",
+    estimatedCost: 1500,
+    category: "purchase",
+    notes: "MacBook Pro for work",
+  },
+  {
+    id: "3",
+    name: "Concert Tickets",
+    date: "2026-04-10",
+    estimatedCost: 250,
+    category: "event",
+    notes: "Taylor Swift Eras Tour",
+  },
+];
+
+export function calculateDailyBudget(
+  monthlyIncome: number,
+  monthlyFixedExpenses: number,
+  plannedEvents: PlannedEvent[],
+  daysUntilEndOfMonth: number
+): { dailyBudget: number; adjustedForEvents: number; eventsCost: number } {
+  const availableBudget = monthlyIncome - monthlyFixedExpenses;
+  const baseDailyBudget = availableBudget / 30;
+  
+  // Calculate upcoming events within the month
+  const today = new Date();
+  const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  
+  const upcomingEventsCost = plannedEvents
+    .filter((event) => {
+      const eventDate = new Date(event.date);
+      return eventDate >= today && eventDate <= endOfMonth;
+    })
+    .reduce((sum, event) => sum + event.estimatedCost, 0);
+  
+  const adjustedBudget = (availableBudget - upcomingEventsCost) / Math.max(daysUntilEndOfMonth, 1);
+  
+  return {
+    dailyBudget: baseDailyBudget,
+    adjustedForEvents: Math.max(adjustedBudget, 0),
+    eventsCost: upcomingEventsCost,
+  };
+}
