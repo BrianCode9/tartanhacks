@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -16,7 +17,8 @@ import {
   Area,
 } from "recharts";
 import { useBudgetData } from "@/lib/use-budget-data";
-import { buildBudgetVsActualSankeyData, mockBudgetPlan } from "@/lib/mock-data";
+import { useUser } from "@/lib/user-context";
+import { buildBudgetVsActualSankeyData } from "@/lib/mock-data";
 import SankeyDiagram from "@/components/SankeyDiagram";
 import {
   TrendingUp,
@@ -68,15 +70,41 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function StatisticsPage() {
-  const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData();
+  const { user } = useUser();
+  const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData(user?.id);
+  const [budgets, setBudgets] = useState<{ id: string; category: string; budgeted: number }[]>([]);
+  const [budgetsLoading, setBudgetsLoading] = useState(true);
+
+  // Fetch user budgets
+  useEffect(() => {
+    if (!user?.id) return;
+
+    setBudgetsLoading(true);
+    fetch(`/api/budgets?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        setBudgets(data);
+        setBudgetsLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch budgets:', err);
+        setBudgetsLoading(false);
+      });
+  }, [user?.id]);
+
+  // Convert budgets to budget plan format
+  const budgetPlan = budgets.length > 0 ? budgets.map(b => ({
+    name: b.category,
+    budgeted: b.budgeted
+  })) : [];
 
   // Avoid hook-order issues by keeping these as plain derived values.
   const budgetVsActualSankey =
-    categories.length > 0
-      ? buildBudgetVsActualSankeyData(mockBudgetPlan, categories)
+    categories.length > 0 && budgetPlan.length > 0
+      ? buildBudgetVsActualSankeyData(budgetPlan, categories)
       : null;
 
-  const budgetVariance = mockBudgetPlan.map((plan) => {
+  const budgetVariance = budgetPlan.map((plan) => {
     const actual = categories.find((c) => c.name.toLowerCase() === plan.name.toLowerCase());
     const actualAmount = actual ? actual.amount : 0;
     return {
@@ -87,7 +115,7 @@ export default function StatisticsPage() {
     };
   });
 
-  if (isLoading) {
+  if (isLoading || budgetsLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
@@ -113,7 +141,7 @@ export default function StatisticsPage() {
     0
   );
 
-  const totalBudgeted = mockBudgetPlan.reduce((s, p) => s + p.budgeted, 0);
+  const totalBudgeted = budgetPlan.reduce((s, p) => s + p.budgeted, 0);
   const totalOverBudget = budgetVariance.filter((v) => v.diff > 0).reduce((s, v) => s + v.diff, 0);
   const totalUnderBudget = budgetVariance.filter((v) => v.diff < 0).reduce((s, v) => s + Math.abs(v.diff), 0);
 
@@ -252,19 +280,17 @@ export default function StatisticsPage() {
             {budgetVariance.map((v) => (
               <div
                 key={v.name}
-                className={`rounded-lg p-2 text-center text-xs ${
-                  v.diff > 0
-                    ? "bg-accent-red/10 border border-accent-red/20"
-                    : v.diff < 0
+                className={`rounded-lg p-2 text-center text-xs ${v.diff > 0
+                  ? "bg-accent-red/10 border border-accent-red/20"
+                  : v.diff < 0
                     ? "bg-accent-green/10 border border-accent-green/20"
                     : "bg-bg-primary/50 border border-border-main"
-                }`}
+                  }`}
               >
                 <p className="text-text-secondary truncate">{v.name}</p>
                 <p
-                  className={`font-bold ${
-                    v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
-                  }`}
+                  className={`font-bold ${v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
+                    }`}
                 >
                   {v.diff > 0 ? "+" : ""}${v.diff.toLocaleString()}
                 </p>

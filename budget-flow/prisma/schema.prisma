@@ -22,6 +22,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   plannedEvents PlannedEvent[]
+  budgets       Budget[]
 
   @@map("users")
 }
@@ -91,4 +92,18 @@ model PlannedEvent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("planned_events")
+}
+
+model Budget {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  category  String
+  budgeted  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, category])
+  @@map("budgets")
 }
