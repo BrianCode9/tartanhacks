@@ -34,12 +34,13 @@ export interface BudgetData {
   updateCategoryColor: (name: string, color: string) => void;
   updateCategory: (name: string, amount: number) => void;
   updateSubcategory: (categoryName: string, subcategoryName: string, amount: number) => void;
+  setCategories: (categories: SpendingCategory[]) => void;
 }
 
 export function useBudgetData(userIdParam?: string): BudgetData {
   const { user } = useUser();
   const userId = userIdParam || user?.id;
-  const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "addCategory" | "removeCategory" | "updateCategoryColor" | "updateCategory" | "updateSubcategory">>({
+  const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "addCategory" | "removeCategory" | "updateCategoryColor" | "updateCategory" | "updateSubcategory" | "setCategories">>({
     categories: [],
     income: 0,
     monthlySpending: [],
@@ -92,6 +93,10 @@ export function useBudgetData(userIdParam?: string): BudgetData {
       });
       return { ...prev, categories: newCategories };
     });
+  };
+
+  const setCategories = (categories: SpendingCategory[]) => {
+    setState((prev) => ({ ...prev, categories }));
   };
 
   const updateSubcategory = (categoryName: string, subcategoryName: string, amount: number) => {
@@ -198,5 +203,5 @@ export function useBudgetData(userIdParam?: string): BudgetData {
     };
   }, [userId]);
 
-  return { ...state, updateIncome, addCategory, removeCategory, updateCategoryColor, updateCategory, updateSubcategory };
+  return { ...state, updateIncome, addCategory, removeCategory, updateCategoryColor, updateCategory, updateSubcategory, setCategories };
 }

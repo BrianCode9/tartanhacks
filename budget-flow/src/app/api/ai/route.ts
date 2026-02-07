@@ -36,6 +36,13 @@ future purchasing recommendations, and money-saving suggestions. Return as JSON:
   ]
 }`;
         break;
+      case "budget-flow-proposal":
+        systemMessage = `Propose a realistic monthly budget as JSON only. Adjust spending, add savings, merge small categories.
+
+{"categories":[{"name":"Name","amount":1200,"color":"#6366f1","subcategories":[{"name":"Sub","amount":800}]}],"proposedIncome":5000,"rationale":[{"category":"Name","explanation":"Brief reason"}],"summary":"2 sentence budget overview"}
+
+Rules: 4-8 categories, 1-5 subcategories each, subcategories sum to category amount, integers only, colors from ["#6366f1","#10b981","#f59e0b","#ec4899","#8b5cf6","#ef4444","#14b8a6","#3b82f6"], include Savings (10-20% of income), merge tiny categories into Other, proposedIncome = stated income. No markdown fences.`;
+        break;
       case "budget-tips":
         systemMessage = `You are a friendly and expert personal financial advisor. Based on the user's spending data and planned events, provide personalized, actionable budgeting advice.
 
@@ -73,8 +80,8 @@ Return your response as JSON:
           { role: "system", content: systemMessage },
           { role: "user", content: prompt },
         ],
-        max_tokens: 4096,
-        temperature: 0.7,
+        max_tokens: type === "budget-flow-proposal" ? 2048 : 4096,
+        temperature: type === "budget-flow-proposal" ? 0.4 : 0.7,
       }),
     });
 
