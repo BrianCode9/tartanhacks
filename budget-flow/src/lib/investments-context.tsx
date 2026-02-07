@@ -58,7 +58,7 @@ function generateMockHistory(days: number, endValue: number): PortfolioDataPoint
     return data.reverse();
 }
 
-// Helper to generate mock intraday history (every 30 mins)
+// Helper to generate mock intraday history (every 5 mins)
 function generateIntradayHistory(endValue: number): PortfolioDataPoint[] {
     const data: PortfolioDataPoint[] = [];
     const today = new Date();
@@ -67,21 +67,46 @@ function generateIntradayHistory(endValue: number): PortfolioDataPoint[] {
     // Start slightly off from endValue to show movement, converging to endValue
     let currentValue = endValue * (1 - (Math.random() * 0.02 - 0.01));
 
-    for (let i = 0; i <= 13; i++) { // 9:30 to 4:00 is 6.5 hours = 13 intervals
+    // 9:30 AM to 4:00 PM is 6.5 hours = 390 minutes
+    // Step 5 minutes = 78 intervals
+    for (let i = 0; i <= 78; i++) {
         data.push({
             date: today.toISOString(),
             value: currentValue
         });
 
-        // Random walk
-        const change = 1 + (Math.random() * 0.01 - 0.004);
+        // Random walk (smaller steps for finer resolution)
+        const change = 1 + (Math.random() * 0.004 - 0.002);
         currentValue = currentValue * change;
 
-        today.setMinutes(today.getMinutes() + 30);
+        today.setMinutes(today.getMinutes() + 5);
     }
 
-    // Ensure the last point matches the current "total value" roughly or just let it float
     return data;
+}
+
+// Helper to generate mock weekly history (hourly)
+function generateWeeklyHistory(endValue: number): PortfolioDataPoint[] {
+    const data: PortfolioDataPoint[] = [];
+    const now = new Date();
+    let currentValue = endValue;
+
+    // 7 days * 24 hours = 168 points (hourly)
+    for (let i = 0; i < 168; i++) {
+        const date = new Date(now);
+        date.setHours(date.getHours() - i);
+
+        data.push({
+            date: date.toISOString(),
+            value: currentValue
+        });
+
+        // Random walk
+        const change = 1 + (Math.random() * 0.006 - 0.003);
+        currentValue = currentValue / change; // Reverse calculation since we go backwards
+    }
+
+    return data.reverse();
 }
 
 export function InvestmentsProvider({ children }: { children: ReactNode }) {
@@ -94,20 +119,23 @@ export function InvestmentsProvider({ children }: { children: ReactNode }) {
 
     // Generate full 5 year history once or on load
     // In a real app, this would be fetched from an API
-    const fullHistory = useMemo(() => generateMockHistory(365 * 2, totalValue), [totalValue]); // Re-generate if totalValue changes drastically, effectively snapping the graph to the new total
+    const fullHistory = useMemo(() => generateMockHistory(365 * 2, totalValue), [totalValue]);
 
-    // Generate intraday data when totalValue changes
+    // Generate high-resolution data when totalValue changes
     const intradayHistory = useMemo(() => generateIntradayHistory(totalValue), [totalValue]);
+    const weeklyHistory = useMemo(() => generateWeeklyHistory(totalValue), [totalValue]);
 
     const portfolioHistory = useMemo(() => {
         if (timeframe === "1D") {
             return intradayHistory;
         }
+        if (timeframe === "1W") {
+            return weeklyHistory;
+        }
 
         let daysToTake = 365;
 
         switch (timeframe) {
-            case "1W": daysToTake = 7; break;
             case "1M": daysToTake = 30; break;
             case "3M": daysToTake = 90; break;
             case "1Y": daysToTake = 365; break;
@@ -115,7 +143,7 @@ export function InvestmentsProvider({ children }: { children: ReactNode }) {
         }
 
         return fullHistory.slice(-daysToTake);
-    }, [fullHistory, intradayHistory, timeframe]);
+    }, [fullHistory, intradayHistory, weeklyHistory, timeframe]);
 
     // Mock calculations for gains (in a real app, these would come from historical comparisons)
     const daysGain = totalValue * 0.012; // Mock +1.2% day
