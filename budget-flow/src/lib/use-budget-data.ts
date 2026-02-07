@@ -18,13 +18,15 @@ import {
   mockMerchants,
 } from "./mock-data";
 
-interface BudgetData {
+export interface BudgetData {
   categories: SpendingCategory[];
   income: number;
   monthlySpending: MonthlySpending[];
   merchants: MerchantSpending[];
   isLoading: boolean;
   isUsingMockData: boolean;
+  updateCategory: (name: string, amount: number) => void;
+  updateSubcategory: (categoryName: string, subcategoryName: string, amount: number) => void;
 }
 
 async function fetchNessie<T>(path: string): Promise<T> {
@@ -34,7 +36,7 @@ async function fetchNessie<T>(path: string): Promise<T> {
 }
 
 export function useBudgetData(): BudgetData {
-  const [data, setData] = useState<BudgetData>({
+  const [state, setState] = useState<Omit<BudgetData, "updateCategory" | "updateSubcategory">>({
     categories: [],
     income: 0,
     monthlySpending: [],
@@ -42,6 +44,44 @@ export function useBudgetData(): BudgetData {
     isLoading: true,
     isUsingMockData: false,
   });
+
+  const updateCategory = (name: string, amount: number) => {
+    setState((prev) => {
+      const newCategories = prev.categories.map((cat) => {
+        if (cat.name === name) {
+          // Scale subcategories proportionally
+          const ratio = cat.amount > 0 ? amount / cat.amount : 0;
+          const newSubs = cat.subcategories.map((sub) => ({
+            ...sub,
+            amount: Math.round(sub.amount * ratio),
+          }));
+          return { ...cat, amount, subcategories: newSubs };
+        }
+        return cat;
+      });
+      return { ...prev, categories: newCategories };
+    });
+  };
+
+  const updateSubcategory = (categoryName: string, subcategoryName: string, amount: number) => {
+    setState((prev) => {
+      const newCategories = prev.categories.map((cat) => {
+        if (cat.name === categoryName) {
+          const newSubs = cat.subcategories.map((sub) => {
+            if (sub.name === subcategoryName) {
+              return { ...sub, amount };
+            }
+            return sub;
+          });
+          // Recalculate total amount for the category
+          const newTotal = newSubs.reduce((sum, sub) => sum + sub.amount, 0);
+          return { ...cat, amount: newTotal, subcategories: newSubs };
+        }
+        return cat;
+      });
+      return { ...prev, categories: newCategories };
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -88,7 +128,7 @@ export function useBudgetData(): BudgetData {
         );
 
         if (!cancelled) {
-          setData({
+          setState({
             categories: transformed.categories,
             income: transformed.income,
             monthlySpending: transformed.monthlySpending,
@@ -100,7 +140,7 @@ export function useBudgetData(): BudgetData {
       } catch (error) {
         console.warn("Failed to fetch Nessie data, using mock data:", error);
         if (!cancelled) {
-          setData({
+          setState({
             categories: mockCategories,
             income: mockIncome,
             monthlySpending: mockMonthlySpending,
@@ -119,5 +159,5 @@ export function useBudgetData(): BudgetData {
     };
   }, []);
 
-  return data;
+  return { ...state, updateCategory, updateSubcategory };
 }
