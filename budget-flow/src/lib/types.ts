@@ -80,15 +80,6 @@ export interface DailySpending {
   transactions: number;
 }
 
-export interface PlannedEvent {
-  id: string;
-  name: string;
-  date: string; // YYYY-MM-DD
-  estimatedCost: number;
-  category: "vacation" | "holiday" | "purchase" | "event" | "other";
-  notes?: string;
-}
-
 // Debt Payoff Types
 export type DebtType = "credit-card" | "student-loan" | "car-loan" | "medical" | "personal-loan";
 

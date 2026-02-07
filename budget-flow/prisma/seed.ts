@@ -41,7 +41,6 @@ async function main() {
     await prisma.transaction.deleteMany({});
     await prisma.account.deleteMany({});
     await prisma.merchant.deleteMany({});
-    await prisma.plannedEvent.deleteMany({});
     await prisma.budget.deleteMany({});
     await prisma.session.deleteMany({});
     await prisma.user.deleteMany({});
