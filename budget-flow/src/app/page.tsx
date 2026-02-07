@@ -127,7 +127,6 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [accountID, setAccountID] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -139,7 +138,7 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
     try {
       const endpoint = mode === "signup" ? "/api/auth/register" : "/api/auth/login";
       const body = mode === "signup"
-        ? { name, email, password, accountID }
+        ? { name, email, password }
         : { email, password };
 
       const response = await fetch(endpoint, {
@@ -229,20 +228,6 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
               placeholder="you@example.com"
             />
           </div>
-          {mode === "signup" && (
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Account ID</label>
-              <input
-                type="text"
-                value={accountID}
-                onChange={(e) => setAccountID(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors disabled:opacity-50"
-                placeholder="Your Nessie account ID"
-              />
-            </div>
-          )}
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-2">Password</label>
             <input

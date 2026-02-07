@@ -5,12 +5,12 @@ import { RegisterRequest, AuthResponse } from "@/lib/auth-types";
 export async function POST(request: NextRequest) {
     try {
         const body: RegisterRequest = await request.json();
-        const { name, email, password, accountID } = body;
+        const { name, email, password } = body;
 
         // Validate input
-        if (!name || !email || !password || !accountID) {
+        if (!name || !email || !password) {
             return NextResponse.json(
-                { success: false, message: "Name, email, password, and accountID are required" } as AuthResponse,
+                { success: false, message: "Name, email, and password are required" } as AuthResponse,
                 { status: 400 }
             );
         }
@@ -24,8 +24,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create user with provided accountID
-        const user = createUser(name, email, password, accountID);
+        if (password.length < 6) {
+            return NextResponse.json(
+                { success: false, message: "Password must be at least 6 characters" } as AuthResponse,
+                { status: 400 }
+            );
+        }
+
+        // Create user (also creates default checking account)
+        const user = await createUser(name, email, password);
         const userSession = toUserSession(user);
 
         return NextResponse.json(

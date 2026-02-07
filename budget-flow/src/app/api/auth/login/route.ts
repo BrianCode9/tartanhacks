@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate credentials
-        const user = validateCredentials(email, password);
+        const user = await validateCredentials(email, password);
 
         if (!user) {
             return NextResponse.json(
@@ -27,25 +27,14 @@ export async function POST(request: NextRequest) {
 
         const userSession = toUserSession(user);
 
-        // Create response with user session
-        const response = NextResponse.json(
+        return NextResponse.json(
             { success: true, user: userSession, message: "Login successful" } as AuthResponse,
             { status: 200 }
         );
-
-        // Set a simple session cookie (user ID)
-        response.cookies.set("user_id", user.id, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            maxAge: 60 * 60 * 24 * 7, // 7 days
-        });
-
-        return response;
     } catch (error) {
         console.error("Login error:", error);
         return NextResponse.json(
-            { success: false, message: "Login failed" } as AuthResponse,
+            { success: false, message: "Failed to login" } as AuthResponse,
             { status: 500 }
         );
     }

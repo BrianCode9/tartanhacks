@@ -5,12 +5,14 @@ import {
   SpendingCategory,
   MonthlySpending,
   MerchantSpending,
-  NessieCustomer,
-  NessieAccount,
-  NessiePurchase,
-  NessieMerchant,
+  Transaction,
+  Merchant,
 } from "./types";
-import { transformNessieData } from "./nessie-transform";
+import {
+  transformTransactionsToCategories,
+  calculateMonthlySpending,
+  calculateMerchantSpending,
+} from "./data-transform";
 import {
   mockCategories,
   mockIncome,
@@ -30,13 +32,7 @@ export interface BudgetData {
   updateSubcategory: (categoryName: string, subcategoryName: string, amount: number) => void;
 }
 
-async function fetchNessie<T>(path: string): Promise<T> {
-  const res = await fetch(`/api/nessie?path=${encodeURIComponent(path)}`);
-  if (!res.ok) throw new Error(`Nessie API error: ${res.status}`);
-  return res.json();
-}
-
-export function useBudgetData(): BudgetData {
+export function useBudgetData(userId?: string): BudgetData {
   const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "updateCategory" | "updateSubcategory">>({
     categories: [],
     income: 0,
@@ -92,58 +88,50 @@ export function useBudgetData(): BudgetData {
     let cancelled = false;
 
     async function loadData() {
+      // If no userId provided, use mock data
+      if (!userId) {
+        setState({
+          categories: mockCategories,
+          income: mockIncome,
+          monthlySpending: mockMonthlySpending,
+          merchants: mockMerchants,
+          isLoading: false,
+          isUsingMockData: true,
+        });
+        return;
+      }
+
       try {
-        // 1. Get customers
-        const customers = await fetchNessie<NessieCustomer[]>("/customers");
-        if (!customers || customers.length === 0) throw new Error("No customers found");
+        // Fetch transactions for the user
+        const res = await fetch(`/api/transactions?userId=${userId}`);
+        if (!res.ok) throw new Error("Failed to fetch transactions");
 
-        const customerId = customers[0]._id;
+        const transactions: (Transaction & { merchant: Merchant })[] = await res.json();
 
-        // 2. Get accounts for first customer
-        const accounts = await fetchNessie<NessieAccount[]>(
-          `/customers/${customerId}/accounts`
-        );
-        if (!accounts || accounts.length === 0) throw new Error("No accounts found");
-
-        // Pick the first checking account, or first account if no checking
-        const checkingAccount =
-          accounts.find((a) => a.type === "Checking") || accounts[0];
-
-        // 3. Get purchases for the account
-        const purchases = await fetchNessie<NessiePurchase[]>(
-          `/accounts/${checkingAccount._id}/purchases`
-        );
-
-        if (!purchases || purchases.length === 0) throw new Error("No purchases found");
-
-        // 4. Get all merchants for category enrichment
-        const merchants = await fetchNessie<NessieMerchant[]>("/merchants");
-        const merchantsById = new Map<string, NessieMerchant>();
-        if (merchants) {
-          for (const m of merchants) {
-            merchantsById.set(m._id, m);
-          }
+        if (!transactions || transactions.length === 0) {
+          throw new Error("No transactions found");
         }
 
-        // 5. Transform data
-        const transformed = transformNessieData(
-          purchases,
-          merchantsById,
-          checkingAccount.balance
-        );
+        // Transform data
+        const categories = transformTransactionsToCategories(transactions);
+        const monthlySpending = calculateMonthlySpending(transactions);
+        const merchants = calculateMerchantSpending(transactions);
+
+        // Calculate income as total positive balance (simplified for now)
+        const income = mockIncome; // Could fetch from accounts in the future
 
         if (!cancelled) {
           setState({
-            categories: transformed.categories,
-            income: transformed.income,
-            monthlySpending: transformed.monthlySpending,
-            merchants: transformed.merchants,
+            categories,
+            income,
+            monthlySpending,
+            merchants,
             isLoading: false,
             isUsingMockData: false,
           });
         }
       } catch (error) {
-        console.warn("Failed to fetch Nessie data, using mock data:", error);
+        console.warn("Failed to fetch database data, using mock data:", error);
         if (!cancelled) {
           setState({
             categories: mockCategories,
@@ -162,7 +150,7 @@ export function useBudgetData(): BudgetData {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
   return { ...state, updateIncome, updateCategory, updateSubcategory };
 }
