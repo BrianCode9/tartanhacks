@@ -1,4 +1,4 @@
-import { BudgetSankeyData, SpendingCategory, MonthlySpending, MerchantSpending, DailySpending, PlannedEvent } from "./types";
+import { BudgetSankeyData, SpendingCategory, MonthlySpending, MerchantSpending, DailySpending, PlannedEvent, Debt, DebtUserProfile, DebtStrategy, DebtPayoffResult, DebtPayoffScheduleItem } from "./types";
 
 export const mockCategories: SpendingCategory[] = [
   {
@@ -80,16 +80,16 @@ export function buildSankeyData(income: number, categories: SpendingCategory[]):
   // The Sankey layout is driven by link values, so we explicitly include income
   // as a source, route spending through an "Expenses" hub, and show either
   // "Unallocated" (income > spending) or "Debt / Shortfall" (spending > income).
-  const nodes: { name: string }[] = [];
+  const nodes: { name: string; color?: string }[] = [];
   const links: { source: number; target: number; value: number }[] = [];
 
   const totalSpending = categories.reduce((sum, cat) => sum + cat.amount, 0);
 
   const incomeIndex = nodes.length;
-  nodes.push({ name: "Income" });
+  nodes.push({ name: "Income", color: "#22c55e" });
 
   const expensesIndex = nodes.length;
-  nodes.push({ name: "Expenses" });
+  nodes.push({ name: "Expenses", color: "#94a3b8" });
 
   // Income funds expenses up to the smaller of the two.
   links.push({
@@ -100,7 +100,7 @@ export function buildSankeyData(income: number, categories: SpendingCategory[]):
 
   if (income > totalSpending) {
     const unallocatedIndex = nodes.length;
-    nodes.push({ name: "Unallocated" });
+    nodes.push({ name: "Unallocated", color: "#06b6d4" });
     links.push({
       source: incomeIndex,
       target: unallocatedIndex,
@@ -108,7 +108,7 @@ export function buildSankeyData(income: number, categories: SpendingCategory[]):
     });
   } else if (totalSpending > income) {
     const shortfallIndex = nodes.length;
-    nodes.push({ name: "Debt / Shortfall" });
+    nodes.push({ name: "Debt / Shortfall", color: "#ef4444" });
     links.push({
       source: shortfallIndex,
       target: expensesIndex,
@@ -119,13 +119,13 @@ export function buildSankeyData(income: number, categories: SpendingCategory[]):
   // Add category nodes
   categories.forEach((cat) => {
     const catIndex = nodes.length;
-    nodes.push({ name: cat.name });
+    nodes.push({ name: cat.name, color: cat.color });
     links.push({ source: expensesIndex, target: catIndex, value: cat.amount });
 
     // Add subcategory nodes
     cat.subcategories.forEach((sub) => {
       const subIndex = nodes.length;
-      nodes.push({ name: sub.name });
+      nodes.push({ name: sub.name, color: cat.color });
       links.push({ source: catIndex, target: subIndex, value: sub.amount });
     });
   });
@@ -242,6 +242,110 @@ export const mockStrategyEdges = [
   { source: "high-spending-alert", target: "reduce-dining", label: "action needed" },
 ];
 
+// Budget plan targets (what the user planned to spend per category)
+export const mockBudgetPlan: { name: string; budgeted: number }[] = [
+  { name: "Housing", budgeted: 1800 },
+  { name: "Food & Dining", budgeted: 700 },
+  { name: "Transportation", budgeted: 400 },
+  { name: "Entertainment", budgeted: 250 },
+  { name: "Shopping", budgeted: 400 },
+  { name: "Health", budgeted: 300 },
+  { name: "Savings", budgeted: 1000 },
+];
+
+/**
+ * Build a Sankey diagram showing budget vs actual variance.
+ *
+ * Layout:
+ *   Budget Plan ─┬→ [Categories] ─→ Spent as Planned
+ *   Overspending ┘                ─→ Over Budget
+ *                                 ─→ Under Budget (Saved)
+ *
+ * Each category receives its budgeted amount from "Budget Plan". If actual
+ * spending exceeded the budget, the extra flows in from "Overspending" and
+ * out to "Over Budget". If actual was less, the difference flows to
+ * "Under Budget (Saved)".
+ */
+export function buildBudgetVsActualSankeyData(
+  budgetPlan: { name: string; budgeted: number }[],
+  actual: SpendingCategory[]
+): BudgetSankeyData {
+  const nodes: { name: string; color?: string }[] = [];
+  const links: { source: number; target: number; value: number }[] = [];
+
+  // Source nodes
+  const budgetIndex = nodes.length;
+  nodes.push({ name: "Budget Plan", color: "#6366f1" });
+
+  // Outcome nodes
+  const spentIndex = nodes.length;
+  nodes.push({ name: "Spent as Planned", color: "#94a3b8" });
+
+  const underBudgetIndex = nodes.length;
+  nodes.push({ name: "Under Budget (Saved)", color: "#22c55e" });
+
+  const overBudgetIndex = nodes.length;
+  nodes.push({ name: "Over Budget", color: "#ef4444" });
+
+  let totalOver = 0;
+
+  // First pass: calculate total overspend so we can add the source node
+  budgetPlan.forEach((plan) => {
+    const actualCat = actual.find(
+      (c) => c.name.toLowerCase() === plan.name.toLowerCase()
+    );
+    const actualAmount = actualCat ? actualCat.amount : 0;
+    if (actualAmount > plan.budgeted) {
+      totalOver += actualAmount - plan.budgeted;
+    }
+  });
+
+  // Add overspending source if needed
+  let overspendIndex = -1;
+  if (totalOver > 0) {
+    overspendIndex = nodes.length;
+    nodes.push({ name: "Overspending", color: "#ef4444" });
+  }
+
+  // Second pass: build links
+  budgetPlan.forEach((plan) => {
+    const actualCat = actual.find(
+      (c) => c.name.toLowerCase() === plan.name.toLowerCase()
+    );
+    const actualAmount = actualCat ? actualCat.amount : 0;
+    const budgeted = plan.budgeted;
+    const diff = actualAmount - budgeted;
+
+    const catIndex = nodes.length;
+    nodes.push({ name: plan.name, color: actualCat?.color || "#64748b" });
+
+    // Budget Plan → Category (always the budgeted amount)
+    links.push({ source: budgetIndex, target: catIndex, value: budgeted });
+
+    if (diff > 0) {
+      // Over budget: extra money flows in from Overspending source
+      links.push({ source: overspendIndex, target: catIndex, value: diff });
+      // Category → Spent as Planned (budgeted portion)
+      links.push({ source: catIndex, target: spentIndex, value: budgeted });
+      // Category → Over Budget (excess)
+      links.push({ source: catIndex, target: overBudgetIndex, value: diff });
+    } else if (diff < 0) {
+      // Under budget: what was spent + what was saved
+      const spent = actualAmount;
+      const saved = Math.abs(diff);
+      if (spent > 0) {
+        links.push({ source: catIndex, target: spentIndex, value: spent });
+      }
+      links.push({ source: catIndex, target: underBudgetIndex, value: saved });
+    } else {
+      // Exactly on budget
+      links.push({ source: catIndex, target: spentIndex, value: budgeted });
+    }
+  });
+
+  return { nodes, links };
+}
+
 // Format date to YYYY-MM-DD string (local time)
 function formatLocalDate(date: Date): string {
   const year = date.getFullYear();
@@ -354,5 +458,206 @@ export function calculateDailyBudget(
     dailyBudget: baseDailyBudget,
     adjustedForEvents: Math.max(adjustedBudget, 0),
     eventsCost: upcomingEventsCost,
+  };
+}
+
+// ─── Debt Payoff Data & Calculations ────────────────────────────────────────
+
+export const mockDebts: Debt[] = [
+  { id: "cc-a", name: "Credit Card A", balance: 4200, interestRate: 24.99, minimumPayment: 105, type: "credit-card" },
+  { id: "cc-b", name: "Credit Card B", balance: 1800, interestRate: 19.99, minimumPayment: 55, type: "credit-card" },
+  { id: "student", name: "Student Loan", balance: 28000, interestRate: 5.5, minimumPayment: 300, type: "student-loan" },
+  { id: "car", name: "Car Loan", balance: 12500, interestRate: 6.9, minimumPayment: 280, type: "car-loan" },
+  { id: "medical", name: "Medical Bill", balance: 3200, interestRate: 0, minimumPayment: 150, type: "medical" },
+  { id: "personal", name: "Personal Loan", balance: 8000, interestRate: 11.5, minimumPayment: 200, type: "personal-loan" },
+];
+
+export const mockDebtProfile: DebtUserProfile = {
+  extraMonthlyPayment: 500,
+  impulsivityScore: 65,
+};
+
+export function calculateDebtPayoff(
+  debts: Debt[],
+  extraPayment: number,
+  strategy: DebtStrategy,
+  customOrder?: string[]
+): DebtPayoffResult {
+  // Sort debts by strategy
+  let sorted: Debt[];
+  if (strategy === "custom" && customOrder) {
+    const idToDebt = new Map(debts.map((d) => [d.id, d]));
+    sorted = customOrder.map((id) => idToDebt.get(id)!).filter(Boolean);
+    // Append any debts missing from custom order
+    const inOrder = new Set(customOrder);
+    for (const d of debts) {
+      if (!inOrder.has(d.id)) sorted.push(d);
+    }
+  } else if (strategy === "hybrid") {
+    // Hybrid: high-interest debts first (>=15%), then smallest balance among the rest
+    const highInterest = [...debts].filter((d) => d.interestRate >= 15).sort((a, b) => b.interestRate - a.interestRate);
+    const rest = [...debts].filter((d) => d.interestRate < 15).sort((a, b) => a.balance - b.balance);
+    sorted = [...highInterest, ...rest];
+  } else if (strategy === "snowball") {
+    sorted = [...debts].sort((a, b) => a.balance - b.balance);
+  } else {
+    sorted = [...debts].sort((a, b) => b.interestRate - a.interestRate);
+  }
+
+  const order = sorted.map((d) => d.id);
+
+  // Track remaining balances and interest paid per debt
+  const balances = new Map<string, number>();
+  const interestPaid = new Map<string, number>();
+  const payoffMonth = new Map<string, number>();
+  const paidOff = new Set<string>();
+
+  for (const d of debts) {
+    balances.set(d.id, d.balance);
+    interestPaid.set(d.id, 0);
+  }
+
+  const debtMap = new Map(debts.map((d) => [d.id, d]));
+  let month = 0;
+  const MAX_MONTHS = 600; // 50 year safety cap
+
+  while (paidOff.size < debts.length && month < MAX_MONTHS) {
+    month++;
+    let extraRemaining = extraPayment;
+
+    // Apply monthly interest to all unpaid debts
+    for (const d of debts) {
+      if (paidOff.has(d.id)) continue;
+      const bal = balances.get(d.id)!;
+      const monthlyRate = d.interestRate / 100 / 12;
+      const interest = bal * monthlyRate;
+      interestPaid.set(d.id, interestPaid.get(d.id)! + interest);
+      balances.set(d.id, bal + interest);
+    }
+
+    // Apply minimum payments
+    for (const d of debts) {
+      if (paidOff.has(d.id)) continue;
+      const bal = balances.get(d.id)!;
+      const payment = Math.min(d.minimumPayment, bal);
+      balances.set(d.id, bal - payment);
+      if (balances.get(d.id)! <= 0.01) {
+        balances.set(d.id, 0);
+        paidOff.add(d.id);
+        payoffMonth.set(d.id, month);
+        // Roll this debt's minimum into extra pool
+        extraRemaining += d.minimumPayment - payment;
+      }
+    }
+
+    // Apply extra payment to target debt(s) in strategy order
+    for (const id of order) {
+      if (paidOff.has(id) || extraRemaining <= 0) continue;
+      const bal = balances.get(id)!;
+      const payment = Math.min(extraRemaining, bal);
+      balances.set(id, bal - payment);
+      extraRemaining -= payment;
+      if (balances.get(id)! <= 0.01) {
+        balances.set(id, 0);
+        paidOff.add(id);
+        payoffMonth.set(id, month);
+        // Roll freed minimum into extra
+        const debt = debtMap.get(id)!;
+        extraRemaining += debt.minimumPayment;
+      }
+    }
+  }
+
+  // Build schedule
+  const today = new Date();
+  let cumulativePayment = 0;
+  const totalMinPayments = debts.reduce((s, d) => s + d.minimumPayment, 0);
+  const totalMonthly = totalMinPayments + extraPayment;
+
+  const schedule: DebtPayoffScheduleItem[] = order.map((id) => {
+    const debt = debtMap.get(id)!;
+    const months = payoffMonth.get(id) ?? MAX_MONTHS;
+    const interest = Math.round(interestPaid.get(id)! * 100) / 100;
+    const payoffDate = new Date(today);
+    payoffDate.setMonth(payoffDate.getMonth() + months);
+    const payoffDateStr = payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+
+    // Monthly payment for this debt = min + share of extra (simplified for display)
+    const monthlyPayment = debt.minimumPayment;
+    cumulativePayment += debt.balance + interest;
+
+    return {
+      debtId: id,
+      monthsToPayoff: months,
+      totalInterestPaid: interest,
+      payoffDate: payoffDateStr,
+      monthlyPayment,
+      cumulativePayment: Math.round(cumulativePayment * 100) / 100,
+    };
+  });
+
+  const totalInterestPaid = schedule.reduce((s, item) => s + item.totalInterestPaid, 0);
+  const totalBalance = debts.reduce((s, d) => s + d.balance, 0);
+  const totalMonthsToDebtFree = Math.max(...schedule.map((s) => s.monthsToPayoff));
+
+  return {
+    strategy,
+    order,
+    schedule,
+    totalInterestPaid: Math.round(totalInterestPaid * 100) / 100,
+    totalMonthsToDebtFree,
+    totalAmountPaid: Math.round((totalBalance + totalInterestPaid) * 100) / 100,
+  };
+}
+
+export function getDebtRiskColor(interestRate: number): "red" | "yellow" | "green" {
+  if (interestRate >= 15) return "red";
+  if (interestRate >= 7) return "yellow";
+  return "green";
+}
+
+export function getDebtRecommendation(
+  impulsivity: number,
+  snowballResult: DebtPayoffResult,
+  avalancheResult: DebtPayoffResult,
+  hybridResult?: DebtPayoffResult
+): { recommended: DebtStrategy; title: string; explanation: string; savingsDifference: number } {
+  const results = [
+    { strategy: "snowball" as DebtStrategy, result: snowballResult },
+    { strategy: "avalanche" as DebtStrategy, result: avalancheResult },
+  ];
+  if (hybridResult) {
+    results.push({ strategy: "hybrid" as DebtStrategy, result: hybridResult });
+  }
+
+  const savingsDiff = Math.abs(snowballResult.totalInterestPaid - avalancheResult.totalInterestPaid);
+
+  // If hybrid exists and balances psychology + savings well, recommend it for mid-range impulsivity
+  if (hybridResult && impulsivity >= 40 && impulsivity <= 70) {
+    const hybridSavings = snowballResult.totalInterestPaid - hybridResult.totalInterestPaid;
+    return {
+      recommended: "hybrid",
+      title: "Hybrid Method Recommended",
+      explanation: `With an impulsivity score of ${impulsivity}/100, the Hybrid method is your best fit. It attacks high-interest debt first to save you money, then switches to smallest-balance for motivational wins. You'll save $${Math.max(0, hybridSavings).toLocaleString(undefined, { maximumFractionDigits: 0 })} compared to pure Snowball while still getting quick payoff momentum.`,
+      savingsDifference: savingsDiff,
+    };
+  }
+
+  const recommended: DebtStrategy = impulsivity > 60 ? "snowball" : "avalanche";
+
+  if (recommended === "snowball") {
+    return {
+      recommended,
+      title: "Snowball Method Recommended",
+      explanation: `With an impulsivity score of ${impulsivity}/100, you'll benefit from the motivational wins of paying off smaller debts first. While you'll pay $${savingsDiff.toLocaleString(undefined, { maximumFractionDigits: 0 })} more in interest, the psychological momentum will help you stay on track.`,
+      savingsDifference: savingsDiff,
+    };
+  }
+
+  return {
+    recommended,
+    title: "Avalanche Method Recommended",
+    explanation: `With an impulsivity score of ${impulsivity}/100, you have the discipline to tackle high-interest debt first. The Avalanche method will save you $${savingsDiff.toLocaleString(undefined, { maximumFractionDigits: 0 })} in interest over the life of your debts.`,
+    savingsDifference: savingsDiff,
   };
 }

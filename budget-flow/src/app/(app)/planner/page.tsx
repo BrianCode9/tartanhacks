@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Calendar,
   Plus,
@@ -16,6 +17,7 @@ import {
   AlertCircle,
   Sparkles,
   RefreshCw,
+  ArrowRight,
   Lightbulb,
   AlertTriangle,
   CheckCircle,
@@ -253,11 +255,22 @@ export default function PlannerPage() {
   return (
     <div className="min-h-screen bg-bg-primary p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary mb-2">Budget Planner</h1>
-        <p className="text-text-secondary">
-          Track spending patterns and plan for upcoming expenses
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Budget Planner</h1>
+          <p className="text-text-secondary">
+            Track spending patterns and plan for upcoming expenses
+          </p>
+        </div>
+
+        <Link
+          href="/strategy"
+          className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 border border-accent-purple/30 hover:from-accent-purple/30 hover:to-accent-blue/30 transition-all text-text-primary"
+        >
+          <Sparkles className="w-4 h-4 text-accent-purple" />
+          <span className="text-sm font-semibold">See more strategies</span>
+          <ArrowRight className="w-4 h-4 text-text-secondary" />
+        </Link>
       </div>
 
       {/* Budget Overview Cards */}

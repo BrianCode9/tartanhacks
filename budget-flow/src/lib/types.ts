@@ -58,7 +58,7 @@ export interface SpendingCategory {
 }
 
 export interface BudgetSankeyData {
-  nodes: { name: string }[];
+  nodes: { name: string; color?: string }[];
   links: { source: number; target: number; value: number }[];
 }
 
@@ -102,4 +102,41 @@ export interface PlannedEvent {
   estimatedCost: number;
   category: "vacation" | "holiday" | "purchase" | "event" | "other";
   notes?: string;
+}
+
+// Debt Payoff Types
+export type DebtType = "credit-card" | "student-loan" | "car-loan" | "medical" | "personal-loan";
+
+export interface Debt {
+  id: string;
+  name: string;
+  balance: number;
+  interestRate: number;
+  minimumPayment: number;
+  type: DebtType;
+}
+
+export type DebtStrategy = "snowball" | "avalanche" | "hybrid" | "custom";
+
+export interface DebtPayoffScheduleItem {
+  debtId: string;
+  monthsToPayoff: number;
+  totalInterestPaid: number;
+  payoffDate: string;
+  monthlyPayment: number;
+  cumulativePayment: number;
+}
+
+export interface DebtPayoffResult {
+  strategy: DebtStrategy;
+  order: string[];
+  schedule: DebtPayoffScheduleItem[];
+  totalInterestPaid: number;
+  totalMonthsToDebtFree: number;
+  totalAmountPaid: number;
+}
+
+export interface DebtUserProfile {
+  extraMonthlyPayment: number;
+  impulsivityScore: number;
 }
