@@ -22,25 +22,31 @@ BudgetFlow helps users understand their spending habits through interactive visu
 
 ## Getting Started
 
-### Prerequisites
+You need **Node.js 18+** and **npm** installed. That's it.
 
-- Node.js 18+
-- npm
-
-### Installation
+### 1. Clone the repo
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/tartanhacks.git
-cd tartanhacks/budget-flow
+git clone https://github.com/BrianCode9/tartanhacks.git
+```
 
-# Install dependencies
+### 2. Navigate into the app directory
+
+The Next.js app lives inside the `budget-flow/` folder, not the repo root.
+
+```bash
+cd tartanhacks/budget-flow
+```
+
+### 3. Install dependencies
+
+```bash
 npm install
 ```
 
-### Environment Setup
+### 4. Set up environment variables
 
-Create a `.env.local` file in the `budget-flow/` directory:
+Create a file called `.env.local` inside `budget-flow/`:
 
 ```env
 NESSIE_API_KEY=your_nessie_api_key
@@ -50,15 +56,21 @@ NEXTAUTH_SECRET=your_secret
 NEXTAUTH_URL=http://localhost:3000
 ```
 
-You can get a Nessie API key at [http://api.nessieisreal.com](http://api.nessieisreal.com).
+- **Nessie API key** - Sign up at [http://api.nessieisreal.com](http://api.nessieisreal.com) to get one
+- **Dedalus API key** - Required for AI features (budget analysis and strategy generation)
+- **NextAuth secret** - Any random string (e.g. run `openssl rand -base64 32` to generate one)
 
-### Run the Dev Server
+> The app will still load without API keys — the dashboard, statistics, and strategy pages all work with built-in mock data. You only need the keys to use live banking data or AI features.
+
+### 5. Start the dev server
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to view the app.
+### 6. Open the app
+
+Go to [http://localhost:3000](http://localhost:3000) in your browser. You'll land on the dashboard automatically.
 
 ## Project Structure
 
