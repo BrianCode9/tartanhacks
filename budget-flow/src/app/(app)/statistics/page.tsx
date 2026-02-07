@@ -33,6 +33,8 @@ import {
   ChevronUp,
   Sparkles,
   X,
+  Brain,
+  Tag,
 } from "lucide-react";
 
 const RADIAN = Math.PI / 180;
@@ -82,20 +84,74 @@ export default function StatisticsPage() {
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [showAISidebar, setShowAISidebar] = useState(false);
   const [aiPreloaded, setAiPreloaded] = useState(false);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [aiBudgetPlan, setAiBudgetPlan] = useState<{ name: string; budgeted: number }[]>([]);
+  const [aiBudgetLoading, setAiBudgetLoading] = useState(true);
+
+  // Collapsible states
+  const [showRecurring, setShowRecurring] = useState(false);
+  const [showSubscriptions, setShowSubscriptions] = useState(false);
+  const [showDayToDay, setShowDayToDay] = useState(false);
+
+  // Fetch real transactions
+  useEffect(() => {
+    if (!user?.id) return;
+
+    setTransactionsLoading(true);
+    fetch(`/api/transactions?userId=${user.id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setTransactions(data);
+        setTransactionsLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch transactions:", err);
+        setTransactionsLoading(false);
+      });
+  }, [user?.id]);
 
   // Preload AI insights in background when page loads
   useEffect(() => {
-    if (!aiPreloaded && !isLoading) {
+    if (!aiPreloaded && !isLoading && transactions.length > 0) {
       setAiPreloaded(true);
-      const recurringExpenses = mockTransactions.filter(t => t.isRecurring);
+      const recurringExpenses = transactions.filter((t) => t.type === 'recurring' || t.type === 'subscription');
       preloadAIInsights(
-        mockTransactions.map(t => ({ merchant: t.merchant, amount: t.amount, category: t.category, date: t.date })),
-        recurringExpenses.map(e => ({ merchant: e.merchant, amount: e.amount, category: e.category })),
-        mockTransactions.reduce((sum, t) => sum + t.amount, 0),
+        transactions.map((t) => ({ merchant: t.merchant?.name || t.description || 'Unknown', amount: t.amount, category: t.merchant?.category || 'Uncategorized', date: t.transactionDate })),
+        recurringExpenses.map((e) => ({ merchant: e.merchant?.name || e.description || 'Unknown', amount: e.amount, category: e.merchant?.category || 'Uncategorized' })),
+        transactions.reduce((sum, t) => sum + t.amount, 0),
         income
       );
     }
-  }, [isLoading, aiPreloaded, income]);
+  }, [isLoading, aiPreloaded, income, transactions]);
+
+  // Fetch AI budget flow
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    setAiBudgetLoading(true);
+    fetch(`/api/budget-flow?userId=${user.id}&month=${month}&year=${year}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.nodes) {
+          const categoryNodes = data.nodes.filter((n: any) => n.type === "category");
+          const plan = categoryNodes.map((n: any) => ({
+            name: n.name,
+            budgeted: parseFloat(n.amount),
+          }));
+          setAiBudgetPlan(plan);
+        }
+        setAiBudgetLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch AI budget flow:", err);
+        setAiBudgetLoading(false);
+      });
+  }, [user?.id]);
 
   // Fetch user budgets
   useEffect(() => {
@@ -120,6 +176,27 @@ export default function StatisticsPage() {
     budgeted: b.budgeted
   })) : [];
 
+  // AI Budget vs Actual derived values
+  const aiBudgetVsActualSankey =
+    categories.length > 0 && aiBudgetPlan.length > 0
+      ? buildBudgetVsActualSankeyData(aiBudgetPlan, categories)
+      : null;
+
+  const aiBudgetVariance = aiBudgetPlan.map((plan) => {
+    const actual = categories.find((c) => c.name.toLowerCase() === plan.name.toLowerCase());
+    const actualAmount = actual ? actual.amount : 0;
+    return {
+      name: plan.name,
+      budgeted: plan.budgeted,
+      actual: actualAmount,
+      diff: actualAmount - plan.budgeted,
+    };
+  });
+
+  const aiTotalBudgeted = aiBudgetPlan.reduce((s, p) => s + p.budgeted, 0);
+  const aiTotalOverBudget = aiBudgetVariance.filter((v) => v.diff > 0).reduce((s, v) => s + v.diff, 0);
+  const aiTotalUnderBudget = aiBudgetVariance.filter((v) => v.diff < 0).reduce((s, v) => s + Math.abs(v.diff), 0);
+
   // Avoid hook-order issues by keeping these as plain derived values.
   const budgetVsActualSankey =
     categories.length > 0 && budgetPlan.length > 0
@@ -137,7 +214,7 @@ export default function StatisticsPage() {
     };
   });
 
-  if (isLoading || budgetsLoading) {
+  if (isLoading || budgetsLoading || transactionsLoading || aiBudgetLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
@@ -175,12 +252,236 @@ export default function StatisticsPage() {
 
   const merchantBarData = sortedMerchants.slice(0, 8);
 
-  // Calculate recurring expenses (subscriptions/bills)
-  // In a real app, this would be determined by transaction patterns or user flags.
-  // Here we filter mock transactions by isRecurring flag.
-  // Note: we need to import mockTransactions first.
-  const recurringExpenses = mockTransactions.filter(t => t.isRecurring);
-  const totalRecurring = recurringExpenses.reduce((sum, t) => sum + t.amount, 0);
+  // Categorize transactions
+  const recurringTrans = transactions.filter(t => t.type === 'recurring');
+  const subscriptionTrans = transactions.filter(t => t.type === 'subscription');
+  const dayToDayTrans = transactions.filter(t => t.type === 'day-to-day' || !t.type);
+
+  const totalRecurring = recurringTrans.reduce((sum, t) => sum + t.amount, 0);
+  const totalSubscriptions = subscriptionTrans.reduce((sum, t) => sum + t.amount, 0);
+  const totalDayToDay = dayToDayTrans.reduce((sum, t) => sum + t.amount, 0);
+
+  // Group transactions by merchant for Recurring/Subscriptions
+  const groupTransactionsByMerchant = (txs: any[]) => {
+    const groups: { [key: string]: { merchant: string; category: string; amount: number; totalSpent: number; history: any[] } } = {};
+
+    txs.forEach(tx => {
+      const key = tx.merchantId || tx.merchant?.name || tx.description;
+      if (!groups[key]) {
+        groups[key] = {
+          merchant: tx.merchant?.name || tx.description,
+          category: tx.merchant?.category || 'Uncategorized',
+          amount: tx.amount, // Will update to most recent
+          totalSpent: 0,
+          history: []
+        };
+      }
+      groups[key].history.push(tx);
+      groups[key].totalSpent += tx.amount;
+    });
+
+    // Sort history by date desc
+    Object.values(groups).forEach(group => {
+      group.history.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+      group.amount = group.history[0].amount; // Use most recent amount
+    });
+
+    return Object.values(groups);
+  };
+
+  const GroupedTransactionList = ({ title, transactions, total, isOpen, onToggle }: { title: string, transactions: any[], total: number, isOpen: boolean, onToggle: () => void }) => {
+    const grouped = groupTransactionsByMerchant(transactions);
+    const [expandedMerchant, setExpandedMerchant] = useState<string | null>(null);
+
+    // Calculate total monthly cost (sum of most recent transaction for each vendor)
+    // The passed 'total' is sum of ALL transactions in time period. 
+    // For "Cost per month", we might want just sum of latest amounts, strictly speaking.
+    // But let's stick to the total passed for the header to match the pie charts/etc for now, 
+    // or arguably "Cost per month" implies future projection. 
+    // Let's use the sum of latest amounts for the header to be more accurate to "Monthly Cost" intent.
+    const monthlyTotal = grouped.reduce((sum, g) => sum + g.amount, 0);
+
+    return (
+      <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-4">
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={onToggle}
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+            <span className="text-xs bg-bg-secondary px-2 py-1 rounded-full text-text-secondary">
+              {grouped.length} vendors
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-text-primary text-right">
+              ${monthlyTotal.toFixed(2)} / mo
+            </span>
+            {isOpen ? <ChevronUp className="w-5 h-5 text-text-secondary" /> : <ChevronDown className="w-5 h-5 text-text-secondary" />}
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="mt-4 space-y-3">
+            {grouped.length > 0 ? (
+              grouped.map((group) => {
+                const isExpanded = expandedMerchant === group.merchant;
+                return (
+                  <div key={group.merchant} className="bg-bg-secondary rounded-lg border border-border-main overflow-hidden">
+                    {/* Vendor Row */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-bg-primary/50 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedMerchant(isExpanded ? null : group.merchant);
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-accent-blue/20 flex items-center justify-center text-accent-blue">
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">{group.merchant}</p>
+                          <p className="text-xs text-text-secondary">{group.category}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="font-semibold text-text-primary">${group.amount.toFixed(2)}/mo</p>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-text-secondary" /> : <ChevronDown className="w-4 h-4 text-text-secondary" />}
+                      </div>
+                    </div>
+
+                    {/* Expanded History */}
+                    {isExpanded && (
+                      <div className="p-3 border-t border-border-main bg-bg-primary/30">
+                        <div className="mb-3 flex justify-between items-center">
+                          <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Recent Payments</h4>
+                          <button className="text-xs bg-accent-red/10 text-accent-red px-2 py-1 rounded hover:bg-accent-red/20 transition-colors">
+                            Cancel Subscription
+                          </button>
+                        </div>
+                        <div className="space-y-2 mb-3">
+                          {group.history.map((tx: any) => (
+                            <div key={tx.id} className="flex justify-between text-sm">
+                              <span className="text-text-secondary">{new Date(tx.transactionDate).toLocaleDateString()}</span>
+                              <span className="text-text-primary">${tx.amount.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {/* Total Spent Footer */}
+                        <div className="pt-3 border-t border-border-main/50 flex justify-between items-center bg-bg-primary/50 -mx-3 -mb-3 p-3">
+                          <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">Total Spent on {group.merchant}</span>
+                          <span className="text-sm font-bold text-text-primary">${group.totalSpent.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-text-secondary">No subscriptions found.</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const CategoryGroupedList = ({ title, transactions, total, isOpen, onToggle }: { title: string, transactions: any[], total: number, isOpen: boolean, onToggle: () => void }) => {
+    // Group by category
+    const groups: { [key: string]: { category: string; amount: number; history: any[] } } = {};
+
+    transactions.forEach(tx => {
+      const cat = tx.merchant?.category || 'Uncategorized';
+      if (!groups[cat]) {
+        groups[cat] = {
+          category: cat,
+          amount: 0,
+          history: []
+        };
+      }
+      groups[cat].amount += tx.amount;
+      groups[cat].history.push(tx);
+    });
+
+    const sortedGroups = Object.values(groups).sort((a, b) => b.amount - a.amount);
+    const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+    return (
+      <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-4">
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={onToggle}
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+            <span className="text-xs bg-bg-secondary px-2 py-1 rounded-full text-text-secondary">
+              {sortedGroups.length} categories
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-text-primary">${total.toFixed(2)}</span>
+            {isOpen ? <ChevronUp className="w-5 h-5 text-text-secondary" /> : <ChevronDown className="w-5 h-5 text-text-secondary" />}
+          </div>
+        </div>
+
+        {isOpen && (
+          <div className="mt-4 space-y-3">
+            {sortedGroups.length > 0 ? (
+              sortedGroups.map((group) => {
+                const isExpanded = expandedCategory === group.category;
+                return (
+                  <div key={group.category} className="bg-bg-secondary rounded-lg border border-border-main overflow-hidden">
+                    {/* Category Row */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-bg-primary/50 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedCategory(isExpanded ? null : group.category);
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-accent-purple/20 flex items-center justify-center text-accent-purple">
+                          <Tag className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">{group.category}</p>
+                          <p className="text-xs text-text-secondary">{group.history.length} transactions</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="font-semibold text-text-primary">${group.amount.toFixed(2)}</p>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-text-secondary" /> : <ChevronDown className="w-4 h-4 text-text-secondary" />}
+                      </div>
+                    </div>
+
+                    {/* Expanded History */}
+                    {isExpanded && (
+                      <div className="p-3 border-t border-border-main bg-bg-primary/30">
+                        <div className="space-y-2">
+                          {group.history.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()).map((tx: any) => (
+                            <div key={tx.id} className="flex items-center justify-between text-sm">
+                              <div className="flex flex-col">
+                                <span className="text-text-primary">{tx.merchant?.name || tx.description}</span>
+                                <span className="text-xs text-text-secondary">{new Date(tx.transactionDate).toLocaleDateString()}</span>
+                              </div>
+                              <span className="text-text-primary font-medium">${tx.amount.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-text-secondary">No day-to-day expenses found.</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-8">
@@ -235,16 +536,16 @@ export default function StatisticsPage() {
             </div>
             <div className="p-4">
               <AIInsights
-                transactions={mockTransactions.map(t => ({
-                  merchant: t.merchant,
+                transactions={transactions.map(t => ({
+                  merchant: t.merchant?.name || t.description || 'Unknown',
                   amount: t.amount,
-                  category: t.category,
-                  date: t.date,
+                  category: t.merchant?.category || 'Uncategorized',
+                  date: t.transactionDate,
                 }))}
-                recurringExpenses={recurringExpenses.map(e => ({
-                  merchant: e.merchant,
+                recurringExpenses={recurringTrans.concat(subscriptionTrans).map(e => ({
+                  merchant: e.merchant?.name || e.description || 'Unknown',
                   amount: e.amount,
-                  category: e.category,
+                  category: e.merchant?.category || 'Uncategorized',
                 }))}
                 totalSpending={totalSpending}
                 income={income}
@@ -309,37 +610,112 @@ export default function StatisticsPage() {
         })}
       </div>
 
-      {/* Recurring & Projections Row */}
+      {/* Transaction Type Sections */}
       <div className="mb-8">
-        {/* Recurring Expenses Card */}
-        <div className="bg-bg-card border border-border-main rounded-xl p-6">
+        <GroupedTransactionList
+          title="Recurring Expenses"
+          transactions={recurringTrans}
+          total={totalRecurring}
+          isOpen={showRecurring}
+          onToggle={() => setShowRecurring(!showRecurring)}
+        />
+
+        <GroupedTransactionList
+          title="Subscriptions"
+          transactions={subscriptionTrans}
+          total={totalSubscriptions}
+          isOpen={showSubscriptions}
+          onToggle={() => setShowSubscriptions(!showSubscriptions)}
+        />
+
+        <CategoryGroupedList
+          title="Day-to-Day Expenses (by Category)"
+          transactions={dayToDayTrans}
+          total={totalDayToDay}
+          isOpen={showDayToDay}
+          onToggle={() => setShowDayToDay(!showDayToDay)}
+        />
+      </div>
+
+      {/* AI Budget vs Actual Sankey */}
+      {aiBudgetVsActualSankey && (
+        <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-8 relative overflow-hidden">
+          {/* Purple accent border */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-purple to-accent-pink" />
+
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-text-primary">Recurring Expenses</h2>
-            <span className="text-sm font-bold text-text-primary">${totalRecurring.toFixed(2)}/mo</span>
-          </div>
-          <div className="space-y-3">
-            {recurringExpenses.length > 0 ? (
-              recurringExpenses.map((expense) => (
-                <div key={expense.id} className="flex items-center justify-between p-3 bg-bg-secondary rounded-lg border border-border-main">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-accent-blue/20 flex items-center justify-center text-accent-blue">
-                      <CreditCard className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{expense.merchant}</p>
-                      <p className="text-xs text-text-secondary">{expense.category}</p>
-                    </div>
-                  </div>
-                  <p className="font-semibold text-text-primary">${expense.amount.toFixed(2)}</p>
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-accent-purple to-accent-pink p-2 rounded-lg">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-text-primary">
+                    AI Budget vs Actual Spending
+                  </h2>
+                  <span className="text-xs bg-accent-purple/20 text-accent-purple px-2 py-0.5 rounded-full font-medium">
+                    AI Recommended
+                  </span>
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-text-secondary">No recurring expenses found.</p>
-            )}
+                <p className="text-sm text-text-secondary">
+                  Compare your AI-recommended budget allocations against actual spending
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-accent-green" />
+                <span className="text-text-secondary">Under Budget</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-accent-red" />
+                <span className="text-text-secondary">Over Budget</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary stats row */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="bg-bg-primary/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">AI Recommended Total</p>
+              <p className="text-lg font-bold text-text-primary">${aiTotalBudgeted.toLocaleString()}</p>
+            </div>
+            <div className="bg-accent-green/5 border border-accent-green/20 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Under Budget (Saved)</p>
+              <p className="text-lg font-bold text-accent-green">${aiTotalUnderBudget.toLocaleString()}</p>
+            </div>
+            <div className="bg-accent-red/5 border border-accent-red/20 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Over Budget</p>
+              <p className="text-lg font-bold text-accent-red">${aiTotalOverBudget.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <SankeyDiagram data={aiBudgetVsActualSankey} />
+
+          {/* Per-category variance chips */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {aiBudgetVariance.map((v) => (
+              <div
+                key={v.name}
+                className={`rounded-lg p-2 text-center text-xs ${v.diff > 0
+                  ? "bg-accent-red/10 border border-accent-red/20"
+                  : v.diff < 0
+                    ? "bg-accent-green/10 border border-accent-green/20"
+                    : "bg-bg-primary/50 border border-border-main"
+                  }`}
+              >
+                <p className="text-text-secondary truncate">{v.name}</p>
+                <p
+                  className={`font-bold ${v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
+                    }`}
+                >
+                  {v.diff > 0 ? "+" : ""}${v.diff.toLocaleString()}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-
-      </div>
+      )}
 
       {/* Budget vs Actual Sankey */}
       {budgetVsActualSankey && (
@@ -570,70 +946,6 @@ export default function StatisticsPage() {
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
-
-      {/* Transactions - Collapsible */}
-      <div className="bg-bg-card border border-border-main rounded-xl p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">
-            Recent Transactions
-          </h2>
-          <button
-            onClick={() => setShowAllTransactions(!showAllTransactions)}
-            className="flex items-center gap-1 text-sm text-accent-blue hover:text-accent-blue/80 transition-colors"
-          >
-            {showAllTransactions ? (
-              <>
-                Show Less <ChevronUp className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                Show All ({mockTransactions.length}) <ChevronDown className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="text-left text-sm text-text-secondary border-b border-border-main">
-                <th className="pb-3 font-medium">Date</th>
-                <th className="pb-3 font-medium">Merchant</th>
-                <th className="pb-3 font-medium">Category</th>
-                <th className="pb-3 font-medium text-center">Status</th>
-                <th className="pb-3 font-medium text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(showAllTransactions ? mockTransactions : mockTransactions.slice(0, 5)).map((tx) => (
-                <tr
-                  key={tx.id}
-                  className="border-b border-border-main/50 hover:bg-bg-card-hover transition-colors"
-                >
-                  <td className="py-3 text-sm text-text-secondary">
-                    {new Date(tx.date).toLocaleDateString()}
-                  </td>
-                  <td className="py-3 font-medium text-text-primary">
-                    {tx.merchant}
-                  </td>
-                  <td className="py-3">
-                    <span className="text-xs bg-bg-primary px-2 py-1 rounded-full text-text-secondary">
-                      {tx.category}
-                    </span>
-                  </td>
-                  <td className="py-3 text-center">
-                    <span className="text-xs text-accent-green bg-accent-green/10 px-2 py-1 rounded-full">
-                      {tx.status}
-                    </span>
-                  </td>
-                  <td className="py-3 text-right font-medium text-text-primary">
-                    ${tx.amount.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>

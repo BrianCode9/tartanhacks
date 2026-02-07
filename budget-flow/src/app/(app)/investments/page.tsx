@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
     TrendingUp,
     Wallet,
@@ -16,8 +16,14 @@ import {
     Coins,
     AlertCircle,
     CheckCircle2,
+    X,
 } from "lucide-react";
 import { useBudgetData } from "@/lib/use-budget-data";
+import AISavingsAdvice, { preloadAISavingsAdvice } from "@/components/AISavingsAdvice";
+import InvestingEducation from "@/components/InvestingEducation";
+import MarketSnapshot from "@/components/MarketSnapshot";
+import CompoundInterestCalculator from "@/components/CompoundInterestCalculator";
+import InvestingQuiz from "@/components/InvestingQuiz";
 
 type RiskLevel = "conservative" | "moderate" | "aggressive";
 
@@ -108,6 +114,8 @@ const STRATEGIES: Record<RiskLevel, { options: (keyof typeof INVESTMENT_OPTIONS)
 export default function InvestmentsPage() {
     const { income, categories } = useBudgetData();
     const [riskLevel, setRiskLevel] = useState<RiskLevel>("moderate");
+    const [showAISidebar, setShowAISidebar] = useState(false);
+    const [aiPreloaded, setAiPreloaded] = useState(false);
 
     // Calculate monthly surplus
     const monthlySurplus = useMemo(() => {
@@ -121,20 +129,78 @@ export default function InvestmentsPage() {
         return monthlyExpenses * 6; // 6 months of expenses
     }, [categories]);
 
+    // Preload AI savings advice in background when page loads
+    useEffect(() => {
+        if (!aiPreloaded && hasSurplus) {
+            setAiPreloaded(true);
+            preloadAISavingsAdvice(monthlySurplus, riskLevel, emergencyFundTarget, income);
+        }
+    }, [hasSurplus, aiPreloaded, monthlySurplus, riskLevel, emergencyFundTarget, income]);
+
     const strategy = STRATEGIES[riskLevel];
 
     return (
         <div className="p-6 space-y-6 max-w-[1200px] mx-auto animate-in fade-in duration-500">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-                    <DollarSign className="text-accent-green" />
-                    Where to Put Your Money
-                </h1>
-                <p className="text-text-secondary">
-                    Smart recommendations for your extra cash
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
+                        <DollarSign className="text-accent-green" />
+                        Where to Put Your Money
+                    </h1>
+                    <p className="text-text-secondary">
+                        Smart recommendations for your extra cash
+                    </p>
+                </div>
+                {hasSurplus && (
+                    <button
+                        onClick={() => setShowAISidebar(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-accent-purple to-accent-pink text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity shadow-lg"
+                    >
+                        <Sparkles className="w-4 h-4" />
+                        AI Investment Advisor
+                    </button>
+                )}
             </div>
+
+            {/* AI Sidebar */}
+            {showAISidebar && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black/50 z-40"
+                        onClick={() => setShowAISidebar(false)}
+                    />
+                    {/* Sidebar */}
+                    <div className="fixed right-0 top-0 h-full w-full max-w-md bg-bg-primary border-l border-border-main z-50 overflow-y-auto shadow-2xl">
+                        <div className="sticky top-0 bg-bg-primary border-b border-border-main p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="bg-gradient-to-br from-accent-purple to-accent-pink p-2 rounded-lg">
+                                    <Sparkles className="w-4 h-4 text-white" />
+                                </div>
+                                <div>
+                                    <h2 className="font-semibold text-text-primary">AI Investment Advisor</h2>
+                                    <p className="text-xs text-text-secondary capitalize">{riskLevel} risk profile</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowAISidebar(false)}
+                                className="p-2 hover:bg-bg-secondary rounded-lg transition-colors"
+                            >
+                                <X className="w-5 h-5 text-text-secondary" />
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <AISavingsAdvice
+                                surplus={monthlySurplus}
+                                riskLevel={riskLevel}
+                                emergencyFundTarget={emergencyFundTarget}
+                                income={income}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Surplus Status */}
             <div className={`rounded-xl p-6 border ${hasSurplus ? "bg-accent-green/10 border-accent-green/20" : "bg-accent-red/10 border-accent-red/20"}`}>
@@ -207,39 +273,6 @@ export default function InvestmentsPage() {
                         </div>
                     </div>
 
-                    {/* AI Recommendation */}
-                    <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-border-main rounded-xl p-6 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-48 h-48 bg-accent-purple/10 rounded-full blur-3xl -mr-24 -mt-24 pointer-events-none" />
-
-                        <div className="flex items-center gap-3 mb-6 relative z-10">
-                            <div className="p-2 bg-gradient-to-br from-accent-purple to-accent-blue rounded-lg">
-                                <Sparkles className="w-5 h-5 text-white" />
-                            </div>
-                            <div>
-                                <h2 className="text-lg font-bold text-white">AI Recommendation</h2>
-                                <p className="text-text-secondary text-sm">Based on your {riskLevel} risk profile</p>
-                            </div>
-                        </div>
-
-                        <div className="bg-bg-secondary/50 rounded-lg p-4 mb-4 relative z-10">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-text-secondary text-sm">Suggested Allocation</span>
-                                <span className="text-accent-purple font-mono text-sm">{strategy.allocation}</span>
-                            </div>
-                            <p className="text-text-primary">
-                                With <span className="text-accent-green font-bold">${monthlySurplus.toLocaleString()}/month</span>,
-                                {riskLevel === "conservative" && " prioritize building your emergency fund and safe, liquid savings."}
-                                {riskLevel === "moderate" && " balance between growth investments and safe savings."}
-                                {riskLevel === "aggressive" && " focus on growth while maintaining a basic emergency fund."}
-                            </p>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-sm text-text-secondary relative z-10">
-                            <Wallet className="w-4 h-4" />
-                            <span>Emergency Fund Target: <span className="text-text-primary font-medium">${emergencyFundTarget.toLocaleString()}</span> (6 months expenses)</span>
-                        </div>
-                    </div>
-
                     {/* Investment Options */}
                     <div>
                         <h2 className="text-lg font-semibold text-text-primary mb-4">Recommended Options</h2>
@@ -276,33 +309,48 @@ export default function InvestmentsPage() {
                             })}
                         </div>
                     </div>
-
-                    {/* Quick Tips */}
-                    <div className="bg-bg-card border border-border-main rounded-xl p-6">
-                        <h2 className="text-lg font-semibold text-text-primary mb-4">Quick Tips</h2>
-                        <div className="space-y-3 text-sm">
-                            <div className="flex items-start gap-3">
-                                <ArrowRight className="w-4 h-4 text-accent-green mt-0.5 shrink-0" />
-                                <p className="text-text-secondary">
-                                    <span className="text-text-primary font-medium">Start with an emergency fund.</span> Aim for 3-6 months of expenses before investing.
-                                </p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <ArrowRight className="w-4 h-4 text-accent-blue mt-0.5 shrink-0" />
-                                <p className="text-text-secondary">
-                                    <span className="text-text-primary font-medium">Automate your savings.</span> Set up automatic transfers on payday.
-                                </p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <ArrowRight className="w-4 h-4 text-accent-purple mt-0.5 shrink-0" />
-                                <p className="text-text-secondary">
-                                    <span className="text-text-primary font-medium">Time in market beats timing the market.</span> Consistent investing wins long-term.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
                 </>
             )}
+
+            {/* Tools & Education - Always Visible */}
+            <div>
+                <h2 className="text-lg font-semibold text-text-primary mb-4">Financial Tools & Knowledge</h2>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <CompoundInterestCalculator />
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <MarketSnapshot />
+                            <InvestingQuiz />
+                        </div>
+                        <InvestingEducation />
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Tips - Always Visible */}
+            <div className="bg-bg-card border border-border-main rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-text-primary mb-4">Quick Tips</h2>
+                <div className="space-y-3 text-sm">
+                    <div className="flex items-start gap-3">
+                        <ArrowRight className="w-4 h-4 text-accent-green mt-0.5 shrink-0" />
+                        <p className="text-text-secondary">
+                            <span className="text-text-primary font-medium">Start with an emergency fund.</span> Aim for 3-6 months of expenses before investing.
+                        </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <ArrowRight className="w-4 h-4 text-accent-blue mt-0.5 shrink-0" />
+                        <p className="text-text-secondary">
+                            <span className="text-text-primary font-medium">Automate your savings.</span> Set up automatic transfers on payday.
+                        </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <ArrowRight className="w-4 h-4 text-accent-purple mt-0.5 shrink-0" />
+                        <p className="text-text-secondary">
+                            <span className="text-text-primary font-medium">Time in market beats timing the market.</span> Consistent investing wins long-term.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

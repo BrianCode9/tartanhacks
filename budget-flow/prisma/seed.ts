@@ -103,13 +103,13 @@ async function main() {
 
         // Recurring monthly transactions (rent, utilities, subscriptions)
         const recurringTransactions = [
-            { merchantName: 'Rent Payment', amount: 1500, day: 1 },
-            { merchantName: 'Electric Company', amount: 150, day: 5 },
-            { merchantName: 'Internet Provider', amount: 80, day: 10 },
-            { merchantName: 'Spotify', amount: 11, day: 15 },
-            { merchantName: 'Netflix', amount: 16, day: 15 },
-            { merchantName: 'Planet Fitness', amount: 50, day: 1 },
-            { merchantName: 'State Farm', amount: 150, day: 1 },
+            { merchantName: 'Rent Payment', amount: 1500, day: 1, type: 'recurring' },
+            { merchantName: 'Electric Company', amount: 150, day: 5, type: 'recurring' },
+            { merchantName: 'Internet Provider', amount: 80, day: 10, type: 'recurring' },
+            { merchantName: 'Spotify', amount: 11, day: 15, type: 'subscription' },
+            { merchantName: 'Netflix', amount: 16, day: 15, type: 'subscription' },
+            { merchantName: 'Planet Fitness', amount: 50, day: 1, type: 'subscription' },
+            { merchantName: 'State Farm', amount: 150, day: 1, type: 'recurring' },
         ];
 
         for (let month = 0; month < 3; month++) {
@@ -127,6 +127,7 @@ async function main() {
                         description: `Monthly ${recurring.merchantName}`,
                         transactionDate,
                         status: 'completed',
+                        type: recurring.type,
                     });
                 }
             }
@@ -166,6 +167,7 @@ async function main() {
                         description: variable.merchantName,
                         transactionDate,
                         status: 'completed',
+                        type: 'day-to-day',
                     });
                 }
             }

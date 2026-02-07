@@ -21,7 +21,9 @@ import {
   calculateDebtPayoff,
   getDebtRecommendation,
 } from "@/lib/mock-data";
-import { DebtStrategy, DebtPayoffResult } from "@/lib/types";
+import { DebtStrategy, DebtPayoffResult, Debt } from "@/lib/types";
+import DebtPayoffCalculator from "@/components/DebtPayoffCalculator";
+import DebtEditor from "@/components/DebtEditor";
 
 const DebtGraph = dynamic(() => import("@/components/DebtGraph"), {
   ssr: false,
@@ -61,25 +63,27 @@ function ComparisonValue({ value, isBest, format }: { value: number; isBest: boo
 }
 
 export default function DebtPayoffPage() {
+  const [debts, setDebts] = useState<Debt[]>(mockDebts);
   const [strategy, setStrategy] = useState<DebtStrategy>("snowball");
   const [customOrder, setCustomOrder] = useState<string[]>(() => mockDebts.map((d) => d.id));
   const [customKey, setCustomKey] = useState(0); // bump to force remount graph
+  const [extraPayment, setExtraPayment] = useState(mockDebtProfile.extraMonthlyPayment);
 
   const snowballResult = useMemo(
-    () => calculateDebtPayoff(mockDebts, mockDebtProfile.extraMonthlyPayment, "snowball"),
-    []
+    () => calculateDebtPayoff(debts, extraPayment, "snowball"),
+    [debts, extraPayment]
   );
   const avalancheResult = useMemo(
-    () => calculateDebtPayoff(mockDebts, mockDebtProfile.extraMonthlyPayment, "avalanche"),
-    []
+    () => calculateDebtPayoff(debts, extraPayment, "avalanche"),
+    [debts, extraPayment]
   );
   const hybridResult = useMemo(
-    () => calculateDebtPayoff(mockDebts, mockDebtProfile.extraMonthlyPayment, "hybrid"),
-    []
+    () => calculateDebtPayoff(debts, extraPayment, "hybrid"),
+    [debts, extraPayment]
   );
   const customResult = useMemo(
-    () => calculateDebtPayoff(mockDebts, mockDebtProfile.extraMonthlyPayment, "custom", customOrder),
-    [customOrder]
+    () => calculateDebtPayoff(debts, extraPayment, "custom", customOrder),
+    [debts, extraPayment, customOrder]
   );
 
   const resultMap: Record<DebtStrategy, DebtPayoffResult> = {
@@ -103,9 +107,9 @@ export default function DebtPayoffPage() {
   }, []);
 
   const handleResetCustom = useCallback(() => {
-    setCustomOrder(mockDebts.map((d) => d.id));
+    setCustomOrder(debts.map((d) => d.id));
     setCustomKey((k) => k + 1);
-  }, []);
+  }, [debts]);
 
   // For comparison: all 4 strategies
   const allResults: { strategy: DebtStrategy; label: string; icon: typeof Snowflake; result: DebtPayoffResult }[] = [
@@ -139,11 +143,10 @@ export default function DebtPayoffPage() {
             <button
               key={key}
               onClick={() => setStrategy(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                strategy === key
-                  ? activeColor
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${strategy === key
+                ? activeColor
+                : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary"
+                }`}
             >
               <Icon className="w-4 h-4" />
               {label}
@@ -152,13 +155,29 @@ export default function DebtPayoffPage() {
         </div>
       </div>
 
+      {/* Calculator */}
+      <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div>
+          <h2 className="text-xl font-semibold text-text-primary mb-4">Calculator</h2>
+          <DebtPayoffCalculator
+            debts={debts}
+            strategy={strategy}
+            extraPayment={extraPayment}
+            onExtraPaymentChange={setExtraPayment}
+          />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold text-text-primary mb-4">Your Debts</h2>
+          <DebtEditor debts={debts} onChange={setDebts} />
+        </div>
+      </div>
+
       {/* AI Recommendation Card */}
       <div
-        className={`mb-6 rounded-2xl p-5 border-2 transition-colors ${
-          isRecommended
-            ? "bg-accent-purple/10 border-accent-purple/30"
-            : "bg-bg-card border-border-main"
-        }`}
+        className={`mb-6 rounded-2xl p-5 border-2 transition-colors ${isRecommended
+          ? "bg-accent-purple/10 border-accent-purple/30"
+          : "bg-bg-card border-border-main"
+          }`}
       >
         <div className="flex items-start gap-4">
           <div className="bg-accent-purple/20 rounded-xl p-2.5 flex-shrink-0">
@@ -210,7 +229,7 @@ export default function DebtPayoffPage() {
           </button>
           <div className="flex items-center gap-2 text-xs text-text-secondary">
             <Sparkles className="w-3 h-3 text-accent-yellow" />
-            Current order: {customOrder.map((id) => mockDebts.find((d) => d.id === id)?.name).filter(Boolean).join(" → ")}
+            Current order: {customOrder.map((id) => debts.find((d) => d.id === id)?.name).filter(Boolean).join(" → ")}
           </div>
         </div>
       )}
@@ -236,8 +255,8 @@ export default function DebtPayoffPage() {
         </div>
         <div className="h-[calc(100vh-520px)] min-h-[400px]">
           <DebtGraph
-            key={`${strategy}-${customKey}`}
-            debts={mockDebts}
+            key={`${strategy}-${customKey}-${debts.length}`}
+            debts={debts}
             schedule={activeResult.schedule}
             strategy={strategy}
             onOrderChange={strategy === "custom" ? handleCustomOrderChange : undefined}

@@ -59,6 +59,7 @@ model Transaction {
   amount          Decimal  @db.Decimal(10, 2)
   description     String?
   transactionDate DateTime @map("transaction_date")
+  type            String   @default("day-to-day") // "recurring", "subscription", "day-to-day"
   status          String   @default("completed")
   createdAt       DateTime @default(now()) @map("created_at")
 

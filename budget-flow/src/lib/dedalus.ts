@@ -6,7 +6,7 @@ interface AIMessage {
   content: string;
 }
 
-export async function queryAI(messages: AIMessage[], model = "anthropic/claude-sonnet-4-5"): Promise<string> {
+export async function queryAI(messages: AIMessage[], model = process.env.DEDALUS_MODEL_ID || "anthropic/claude-4.5-sonnet"): Promise<string> {
   const res = await fetch(`${DEDALUS_URL}/chat/completions`, {
     method: "POST",
     headers: {
@@ -44,7 +44,7 @@ Return your response as JSON with this structure:
   "totalSpending": 3500,
   "insights": ["insight 1", "insight 2"],
   "strategies": [
-    { "id": "s1", "type": "goal|strategy|suggestion|warning", "label": "Title", "description": "Details", "amount": 100 }
+    { "id": "s1", "type": "mission|goal|strategy|suggestion|warning", "label": "Title", "description": "Details", "amount": 100 }
   ]
 }`,
     },
@@ -59,16 +59,22 @@ export async function generateStrategies(budgetSummary: string): Promise<string>
   return queryAI([
     {
       role: "system",
-      content: `You are a financial strategist AI. Given the user's budget summary, generate a workflow of budget strategies,
-future purchasing recommendations, and money-saving suggestions. Return as JSON:
+      content: `You are a visionary financial strategist AI. Your goal is to define a "Financial Mission" for the user based on their spending habits and income, and then map out strategies to achieve it.
+
+First, identify a single, overarching "Financial Mission" (e.g., "Achieve Financial Independence," "Maximize Travel Experiences," "Debt-Free Living").
+Then, generate goals, strategies, and specific actions that support this mission.
+
+Return as JSON:
 {
   "nodes": [
-    { "id": "n1", "type": "income|goal|strategy|suggestion|warning", "label": "Title", "description": "Details", "amount": 100 }
+    { "id": "n1", "type": "mission|income|goal|strategy|suggestion|warning", "label": "Title", "description": "Details", "amount": 100 }
   ],
   "edges": [
     { "source": "n1", "target": "n2", "label": "connection reason" }
   ]
-}`,
+}
+
+Ensure the 'mission' node is the central root of the strategy graph.`,
     },
     {
       role: "user",
