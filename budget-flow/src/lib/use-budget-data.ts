@@ -147,10 +147,21 @@ export function useBudgetData(userIdParam?: string): BudgetData {
           throw new Error("No transactions found");
         }
 
-        // Transform data
-        const categories = transformTransactionsToCategories(transactions);
-        const monthlySpending = calculateMonthlySpending(transactions);
-        const merchants = calculateMerchantSpending(transactions);
+        // Get the current month's date range
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth();
+
+        // Filter to only current month transactions
+        const currentMonthTransactions = transactions.filter(transaction => {
+          const date = new Date(transaction.transactionDate);
+          return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+        });
+
+        // Transform data using current month transactions for categories and merchants
+        const categories = transformTransactionsToCategories(currentMonthTransactions);
+        const monthlySpending = calculateMonthlySpending(transactions); // Keep all for trend chart
+        const merchants = calculateMerchantSpending(currentMonthTransactions);
 
         // Use monthly income from user profile
         const income = Number(userData.monthlyIncome) || mockIncome;

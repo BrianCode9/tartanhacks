@@ -10,7 +10,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
         where: { email: email.toLowerCase() },
     });
 
-    return user as User | null;
+    return user as any as User | null;
 }
 
 /**
@@ -21,7 +21,7 @@ export async function findUserById(id: string): Promise<User | null> {
         where: { id },
     });
 
-    return user as User | null;
+    return user as any as User | null;
 }
 
 /**
@@ -57,7 +57,7 @@ export async function createUser(
         },
     });
 
-    return user as User;
+    return user as any as User;
 }
 
 /**
@@ -90,7 +90,7 @@ export async function validateCredentials(
         return null;
     }
 
-    return user as User;
+    return user as any as User;
 }
 
 /**

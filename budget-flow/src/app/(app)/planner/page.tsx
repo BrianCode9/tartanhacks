@@ -23,14 +23,11 @@ import {
   CheckCircle,
 } from "lucide-react";
 import CalendarHeatmap from "@/components/CalendarHeatmap";
-import {
-  generateDailySpending,
-  mockPlannedEvents,
-  mockIncome,
-  mockCategories,
-  calculateDailyBudget,
-} from "@/lib/mock-data";
-import { PlannedEvent, DailySpending } from "@/lib/types";
+import { calculateDailyBudget } from "@/lib/mock-data";
+import { PlannedEvent, DailySpending, Transaction, Merchant } from "@/lib/types";
+import { useBudgetData } from "@/lib/use-budget-data";
+import { useUser } from "@/lib/user-context";
+import { calculateDailySpending } from "@/lib/data-transform";
 
 const CATEGORY_ICONS = {
   vacation: Plane,
@@ -49,7 +46,10 @@ const CATEGORY_COLORS = {
 };
 
 export default function PlannerPage() {
-  const [events, setEvents] = useState<PlannedEvent[]>(mockPlannedEvents);
+  const { user } = useUser();
+  const { categories, income, isLoading: budgetLoading } = useBudgetData(user?.id);
+
+  const [events, setEvents] = useState<PlannedEvent[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState<DailySpending | null>(null);
   const [newEvent, setNewEvent] = useState<Partial<PlannedEvent>>({
@@ -64,13 +64,31 @@ export default function PlannerPage() {
   const [aiError, setAiError] = useState<string | null>(null);
   const [dailySpending, setDailySpending] = useState<DailySpending[]>([]);
 
-  // Generate spending data on client only to avoid hydration mismatch
+  // Fetch planned events from database
   useEffect(() => {
-    setDailySpending(generateDailySpending());
-  }, []);
+    if (!user?.id) return;
 
-  // Calculate fixed expenses (housing, insurance, etc.)
-  const fixedExpenses = mockCategories
+    fetch(`/api/planned-events?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => setEvents(data))
+      .catch(err => console.error('Failed to fetch planned events:', err));
+  }, [user?.id]);
+
+  // Fetch transactions and calculate daily spending
+  useEffect(() => {
+    if (!user?.id) return;
+
+    fetch(`/api/transactions?userId=${user.id}`)
+      .then(res => res.json())
+      .then((transactions: (Transaction & { merchant: Merchant })[]) => {
+        const daily = calculateDailySpending(transactions);
+        setDailySpending(daily);
+      })
+      .catch(err => console.error('Failed to fetch transactions:', err));
+  }, [user?.id]);
+
+  // Calculate fixed expenses (housing, insurance, etc.) from REAL categories
+  const fixedExpenses = categories
     .filter((c) => ["Housing", "Health"].includes(c.name))
     .reduce((sum, c) => sum + c.amount, 0);
 
@@ -86,7 +104,7 @@ export default function PlannerPage() {
   const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
   const daysRemaining = Math.ceil((endOfMonth.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-  const budgetInfo = calculateDailyBudget(mockIncome, fixedExpenses, events, daysRemaining);
+  const budgetInfo = calculateDailyBudget(income, fixedExpenses, events, daysRemaining);
 
   // Spending stats
   const last7Days = dailySpending.slice(-7);
@@ -99,24 +117,31 @@ export default function PlannerPage() {
     .filter((e) => parseLocalDate(e.date) >= todayStart)
     .sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
 
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (newEvent.name && newEvent.date && newEvent.estimatedCost) {
-      const event: PlannedEvent = {
-        id: Date.now().toString(),
-        name: newEvent.name,
-        date: newEvent.date,
-        estimatedCost: newEvent.estimatedCost,
-        category: newEvent.category || "other",
-        notes: newEvent.notes,
-      };
-      setEvents([...events, event]);
-      setNewEvent({ category: "other" });
-      setShowAddModal(false);
+      try {
+        const response = await fetch('/api/planned-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...newEvent, userId: user?.id })
+        });
+        const created = await response.json();
+        setEvents([...events, created]);
+        setNewEvent({ category: "other" });
+        setShowAddModal(false);
+      } catch (error) {
+        console.error('Failed to add event:', error);
+      }
     }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id));
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await fetch(`/api/planned-events/${id}`, { method: 'DELETE' });
+      setEvents(events.filter((e) => e.id !== id));
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+    }
   };
 
   // Format date for display using local parsing
@@ -137,7 +162,7 @@ export default function PlannerPage() {
 
   // Mock AI tips for development mode
   const mockAiTips = {
-    summary: isOverBudget 
+    summary: isOverBudget
       ? "Your spending is slightly above your daily budget. Let's find some areas to optimize!"
       : "Great job staying within budget! Here are some tips to save even more.",
     tips: [
@@ -160,7 +185,7 @@ export default function PlannerPage() {
         potentialSavings: 30
       }
     ],
-    encouragement: upcomingEvents.length > 0 
+    encouragement: upcomingEvents.length > 0
       ? `You're planning ahead for ${upcomingEvents.length} upcoming event${upcomingEvents.length > 1 ? 's' : ''}—that's smart budgeting!`
       : "Starting to track your spending is the first step to financial freedom. Keep it up!"
   };
@@ -169,7 +194,7 @@ export default function PlannerPage() {
   const fetchAiTips = useCallback(async () => {
     setAiLoading(true);
     setAiError(null);
-    
+
     // Use mock data in development to avoid API calls
     if (process.env.NODE_ENV === "development") {
       // Simulate network delay for realistic UX
@@ -178,13 +203,13 @@ export default function PlannerPage() {
       setAiLoading(false);
       return;
     }
-    
+
     // Build context for AI (production only)
     const spendingSummary = {
       avgDaily7Days: avgDailySpending.toFixed(2),
       baseDailyBudget: budgetInfo.dailyBudget.toFixed(2),
       adjustedDailyBudget: budgetInfo.adjustedForEvents.toFixed(2),
-      monthlyIncome: mockIncome,
+      monthlyIncome: income,
       plannedEventsCost: budgetInfo.eventsCost.toFixed(2),
       daysRemaining,
       isOverBudget,
@@ -198,7 +223,7 @@ export default function PlannerPage() {
         date: d.date,
         amount: d.amount
       })),
-      categories: mockCategories.map(c => ({ name: c.name, amount: c.amount }))
+      categories: categories.map((c: any) => ({ name: c.name, amount: c.amount }))
     };
 
     try {
@@ -216,14 +241,14 @@ export default function PlannerPage() {
       }
 
       const data = await response.json();
-      
+
       // Extract JSON from response (may be wrapped in markdown code blocks)
       let jsonStr = data.response;
       const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
       if (jsonMatch) {
         jsonStr = jsonMatch[1].trim();
       }
-      
+
       const parsed = JSON.parse(jsonStr);
       setAiTips(parsed);
     } catch (err) {
@@ -241,7 +266,7 @@ export default function PlannerPage() {
   }, [dailySpending.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show loading state while data loads
-  if (dailySpending.length === 0) {
+  if (!user || budgetLoading || dailySpending.length === 0) {
     return (
       <div className="min-h-screen bg-bg-primary p-6 flex items-center justify-center">
         <div className="text-center">
@@ -432,7 +457,7 @@ export default function PlannerPage() {
                 <RefreshCw className={`w-4 h-4 text-text-secondary ${aiLoading ? "animate-spin" : ""}`} />
               </button>
             </div>
-            
+
             {aiLoading && (
               <div className="space-y-2">
                 <div className="h-4 bg-bg-card rounded animate-pulse" />
@@ -440,26 +465,25 @@ export default function PlannerPage() {
                 <div className="h-16 bg-bg-card rounded animate-pulse mt-3" />
               </div>
             )}
-            
+
             {aiError && (
               <p className="text-xs text-accent-red">{aiError}</p>
             )}
-            
+
             {aiTips && !aiLoading && (
               <div className="space-y-3">
                 <p className="text-sm text-text-secondary">{aiTips.summary}</p>
-                
+
                 <div className="space-y-2">
                   {aiTips.tips.map((tip, i) => (
                     <div
                       key={i}
-                      className={`p-3 rounded-lg border ${
-                        tip.priority === "high"
-                          ? "bg-accent-red/10 border-accent-red/30"
-                          : tip.priority === "medium"
+                      className={`p-3 rounded-lg border ${tip.priority === "high"
+                        ? "bg-accent-red/10 border-accent-red/30"
+                        : tip.priority === "medium"
                           ? "bg-accent-yellow/10 border-accent-yellow/30"
                           : "bg-accent-green/10 border-accent-green/30"
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start gap-2">
                         {tip.priority === "high" ? (
@@ -482,7 +506,7 @@ export default function PlannerPage() {
                     </div>
                   ))}
                 </div>
-                
+
                 {aiTips.encouragement && (
                   <p className="text-xs text-text-secondary italic mt-2">
                     "{aiTips.encouragement}"
@@ -497,13 +521,13 @@ export default function PlannerPage() {
                 How is your adjusted budget calculated?
               </summary>
               <div className="mt-2 p-3 bg-bg-card rounded-lg text-xs text-text-secondary space-y-1">
-                <p><strong className="text-text-primary">Monthly Income:</strong> ${mockIncome.toLocaleString()}</p>
+                <p><strong className="text-text-primary">Monthly Income:</strong> ${income.toLocaleString()}</p>
                 <p><strong className="text-text-primary">Fixed Expenses:</strong> -${fixedExpenses.toLocaleString()}</p>
-                <p><strong className="text-text-primary">Available:</strong> ${(mockIncome - fixedExpenses).toLocaleString()}</p>
+                <p><strong className="text-text-primary">Available:</strong> ${(income - fixedExpenses).toLocaleString()}</p>
                 <hr className="border-border-main my-2" />
-                <p><strong className="text-text-primary">Base daily:</strong> ${budgetInfo.dailyBudget.toFixed(2)} ({"($"}{(mockIncome - fixedExpenses).toLocaleString()} ÷ 30 days)</p>
+                <p><strong className="text-text-primary">Base daily:</strong> ${budgetInfo.dailyBudget.toFixed(2)} ({"($"}{(income - fixedExpenses).toLocaleString()} ÷ 30 days)</p>
                 <p><strong className="text-text-primary">Events this month:</strong> -${budgetInfo.eventsCost.toLocaleString()}</p>
-                <p><strong className="text-text-primary">Adjusted daily:</strong> ${budgetInfo.adjustedForEvents.toFixed(2)} ({"($"}{(mockIncome - fixedExpenses - budgetInfo.eventsCost).toLocaleString()} ÷ {daysRemaining} days)</p>
+                <p><strong className="text-text-primary">Adjusted daily:</strong> ${budgetInfo.adjustedForEvents.toFixed(2)} ({"($"}{(income - fixedExpenses - budgetInfo.eventsCost).toLocaleString()} ÷ {daysRemaining} days)</p>
               </div>
             </details>
           </div>

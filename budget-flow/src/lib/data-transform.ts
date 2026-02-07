@@ -1,6 +1,22 @@
 import { Transaction, Merchant, SpendingCategory } from "./types";
 
 /**
+ * Filter transactions to only include those from the current month
+ */
+export function filterCurrentMonthTransactions<T extends Transaction>(
+    transactions: T[]
+): T[] {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    return transactions.filter(transaction => {
+        const date = new Date(transaction.transactionDate);
+        return date.getFullYear() === currentYear && date.getMonth() === currentMonth;
+    });
+}
+
+/**
  * Transform database transactions into spending categories for the app
  */
 export function transformTransactionsToCategories(
@@ -109,4 +125,33 @@ export function calculateMerchantSpending(
         }))
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 10);
+}
+
+/**
+ * Calculate daily spending from transactions for heatmap
+ */
+export function calculateDailySpending(
+    transactions: Transaction[]
+): { date: string; amount: number; transactions: number }[] {
+    const dailyMap = new Map<string, { amount: number; count: number }>();
+
+    for (const transaction of transactions) {
+        // Format date as YYYY-MM-DD
+        const date = new Date(transaction.transactionDate);
+        const dateStr = date.toISOString().split('T')[0];
+
+        const existing = dailyMap.get(dateStr) || { amount: 0, count: 0 };
+        dailyMap.set(dateStr, {
+            amount: existing.amount + transaction.amount,
+            count: existing.count + 1
+        });
+    }
+
+    return Array.from(dailyMap.entries())
+        .map(([date, data]) => ({
+            date,
+            amount: data.amount,
+            transactions: data.count
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
 }

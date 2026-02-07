@@ -19,8 +19,9 @@ model User {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   
-  accounts     Account[]
-  sessions     Session[]
+  accounts      Account[]
+  sessions      Session[]
+  plannedEvents PlannedEvent[]
 
   @@map("users")
 }
@@ -75,4 +76,19 @@ model Session {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("sessions")
+}
+
+model PlannedEvent {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  name          String
+  date          DateTime
+  estimatedCost Decimal  @db.Decimal(10, 2)
+  category      String
+  notes         String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("planned_events")
 }
