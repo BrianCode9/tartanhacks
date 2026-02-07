@@ -8,16 +8,26 @@ import {
   BarChart3,
 } from "lucide-react";
 import CalendarHeatmap from "@/components/CalendarHeatmap";
-import { generateDailySpending } from "@/lib/mock-data";
-import { DailySpending } from "@/lib/types";
+import { DailySpending, Transaction, Merchant } from "@/lib/types";
+import { useUser } from "@/lib/user-context";
+import { calculateDailySpending } from "@/lib/data-transform";
 
 export default function SpendingHistoryPage() {
+  const { user } = useUser();
   const [dailySpending, setDailySpending] = useState<DailySpending[]>([]);
 
-  // Generate spending data on client only to avoid hydration mismatch
+  // Fetch transactions and calculate daily spending
   useEffect(() => {
-    setDailySpending(generateDailySpending());
-  }, []);
+    if (!user?.id) return;
+
+    fetch(`/api/transactions?userId=${user.id}`)
+      .then(res => res.json())
+      .then((transactions: (Transaction & { merchant: Merchant })[]) => {
+        const daily = calculateDailySpending(transactions);
+        setDailySpending(daily);
+      })
+      .catch(err => console.error('Failed to fetch transactions:', err));
+  }, [user?.id]);
 
   // Calculate monthly stats
   const monthlyStats = useMemo(() => {
