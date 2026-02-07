@@ -22,6 +22,7 @@ import {
   getDebtRecommendation,
 } from "@/lib/mock-data";
 import { DebtStrategy, DebtPayoffResult } from "@/lib/types";
+import DebtPayoffCalculator from "@/components/DebtPayoffCalculator";
 
 const DebtGraph = dynamic(() => import("@/components/DebtGraph"), {
   ssr: false,
@@ -139,11 +140,10 @@ export default function DebtPayoffPage() {
             <button
               key={key}
               onClick={() => setStrategy(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                strategy === key
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${strategy === key
                   ? activeColor
                   : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary"
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" />
               {label}
@@ -152,13 +152,17 @@ export default function DebtPayoffPage() {
         </div>
       </div>
 
+      {/* Calculator */}
+      <div className="mb-8">
+        <DebtPayoffCalculator />
+      </div>
+
       {/* AI Recommendation Card */}
       <div
-        className={`mb-6 rounded-2xl p-5 border-2 transition-colors ${
-          isRecommended
+        className={`mb-6 rounded-2xl p-5 border-2 transition-colors ${isRecommended
             ? "bg-accent-purple/10 border-accent-purple/30"
             : "bg-bg-card border-border-main"
-        }`}
+          }`}
       >
         <div className="flex items-start gap-4">
           <div className="bg-accent-purple/20 rounded-xl p-2.5 flex-shrink-0">
