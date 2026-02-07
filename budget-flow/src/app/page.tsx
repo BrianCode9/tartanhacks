@@ -11,7 +11,7 @@ const MOSAIC_TILES = [
   { id: 2, x: 5, y: 75, color: "#8b5cf6", delay: 1, duration: 4.5, size: "lg", opacity: 0.4 },
   { id: 3, x: 85, y: 70, color: "#ec4899", delay: 1.5, duration: 5, size: "lg", opacity: 0.35 },
   { id: 4, x: 45, y: 85, color: "#f59e0b", delay: 0.3, duration: 4, size: "lg", opacity: 0.3 },
-  
+
   // Medium tiles - scattered across
   { id: 5, x: 15, y: 20, color: "#14b8a6", delay: 0.2, duration: 3.5, size: "md", opacity: 0.5 },
   { id: 6, x: 75, y: 25, color: "#10b981", delay: 0.8, duration: 4, size: "md", opacity: 0.45 },
@@ -23,7 +23,7 @@ const MOSAIC_TILES = [
   { id: 12, x: 8, y: 35, color: "#10b981", delay: 0.9, duration: 4.1, size: "md", opacity: 0.45 },
   { id: 13, x: 50, y: 15, color: "#6366f1", delay: 1.6, duration: 3.7, size: "md", opacity: 0.4 },
   { id: 14, x: 35, y: 90, color: "#8b5cf6", delay: 0.7, duration: 4.3, size: "md", opacity: 0.5 },
-  
+
   // Small accent tiles - many of them
   { id: 15, x: 10, y: 12, color: "#ec4899", delay: 0.1, duration: 3, size: "sm", opacity: 0.6 },
   { id: 16, x: 30, y: 8, color: "#f59e0b", delay: 0.5, duration: 3.2, size: "sm", opacity: 0.55 },
@@ -50,7 +50,7 @@ const MOSAIC_TILES = [
   { id: 37, x: 72, y: 88, color: "#6366f1", delay: 1.1, duration: 3.3, size: "sm", opacity: 0.6 },
   { id: 38, x: 92, y: 92, color: "#8b5cf6", delay: 1.5, duration: 3.5, size: "sm", opacity: 0.55 },
   { id: 39, x: 3, y: 95, color: "#ec4899", delay: 0.2, duration: 3, size: "sm", opacity: 0.6 },
-  
+
   // Tiny sparkle tiles
   { id: 40, x: 18, y: 3, color: "#f59e0b", delay: 0, duration: 2.5, size: "xs", opacity: 0.7 },
   { id: 41, x: 40, y: 10, color: "#14b8a6", delay: 0.4, duration: 2.8, size: "xs", opacity: 0.65 },
@@ -82,10 +82,10 @@ const TILE_SIZES = {
 };
 
 // Mosaic tile component for background
-function MosaicTile({ 
-  delay, x, y, color, duration, size, opacity 
-}: { 
-  delay: number; x: number; y: number; color: string; duration: number; size: string; opacity: number 
+function MosaicTile({
+  delay, x, y, color, duration, size, opacity
+}: {
+  delay: number; x: number; y: number; color: string; duration: number; size: string; opacity: number
 }) {
   return (
     <div
@@ -109,12 +109,12 @@ function MosaicBackground() {
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       {/* Base gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-bg-primary via-bg-secondary to-bg-primary" />
-      
+
       {/* Mosaic tiles */}
       {MOSAIC_TILES.map((tile) => (
         <MosaicTile key={tile.id} {...tile} />
       ))}
-      
+
       {/* Subtle overlay to blend */}
       <div className="absolute inset-0 bg-gradient-to-t from-bg-primary via-transparent to-bg-primary/50" />
     </div>
@@ -127,11 +127,42 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [accountID, setAccountID] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // For hackathon demo - just redirect to dashboard
-    router.push("/dashboard");
+    setLoading(true);
+    setError("");
+
+    try {
+      const endpoint = mode === "signup" ? "/api/auth/register" : "/api/auth/login";
+      const body = mode === "signup"
+        ? { name, email, password, accountID }
+        : { email, password };
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.message || "Authentication failed");
+        setLoading(false);
+        return;
+      }
+
+      // Success - redirect to dashboard
+      router.push("/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError("An error occurred. Please try again.");
+      setLoading(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -140,7 +171,7 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      
+
       {/* Modal */}
       <div className="relative bg-bg-card border border-border-main rounded-2xl p-8 w-full max-w-md shadow-2xl">
         {/* Close button */}
@@ -163,6 +194,13 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
           </p>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <div className="mb-4 p-3 bg-accent-red/10 border border-accent-red/20 rounded-lg text-accent-red text-sm">
+            {error}
+          </div>
+        )}
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
@@ -172,7 +210,9 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors"
+                required
+                disabled={loading}
+                className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors disabled:opacity-50"
                 placeholder="Your name"
               />
             </div>
@@ -183,25 +223,44 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors"
+              required
+              disabled={loading}
+              className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors disabled:opacity-50"
               placeholder="you@example.com"
             />
           </div>
+          {mode === "signup" && (
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">Account ID</label>
+              <input
+                type="text"
+                value={accountID}
+                onChange={(e) => setAccountID(e.target.value)}
+                required
+                disabled={loading}
+                className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors disabled:opacity-50"
+                placeholder="Your Nessie account ID"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-2">Password</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors"
+              required
+              disabled={loading}
+              className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors disabled:opacity-50"
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
-            className="w-full py-3 bg-gradient-to-r from-accent-purple to-accent-blue text-white font-semibold rounded-lg hover:opacity-90 transition-opacity mt-6"
+            disabled={loading}
+            className="w-full py-3 bg-gradient-to-r from-accent-purple to-accent-blue text-white font-semibold rounded-lg hover:opacity-90 transition-opacity mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {mode === "login" ? "Sign In" : "Create Account"}
+            {loading ? "Please wait..." : (mode === "login" ? "Sign In" : "Create Account")}
           </button>
         </form>
 
@@ -214,21 +273,23 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
 
         {/* Social login */}
         <div className="flex gap-4">
-          <button 
+          <button
             onClick={() => router.push("/dashboard")}
-            className="flex-1 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary hover:bg-bg-card-hover transition-colors flex items-center justify-center gap-2"
+            disabled={loading}
+            className="flex-1 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary hover:bg-bg-card-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z"/>
+              <path d="M12.545,10.239v3.821h5.445c-0.712,2.315-2.647,3.972-5.445,3.972c-3.332,0-6.033-2.701-6.033-6.032s2.701-6.032,6.033-6.032c1.498,0,2.866,0.549,3.921,1.453l2.814-2.814C17.503,2.988,15.139,2,12.545,2C7.021,2,2.543,6.477,2.543,12s4.478,10,10.002,10c8.396,0,10.249-7.85,9.426-11.748L12.545,10.239z" />
             </svg>
             Google
           </button>
-          <button 
+          <button
             onClick={() => router.push("/dashboard")}
-            className="flex-1 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary hover:bg-bg-card-hover transition-colors flex items-center justify-center gap-2"
+            disabled={loading}
+            className="flex-1 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary hover:bg-bg-card-hover transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
             </svg>
             GitHub
           </button>
@@ -245,7 +306,7 @@ function FeatureCard({ icon, title, description, color }: { icon: React.ReactNod
       {/* Decorative corner tiles */}
       <div className="absolute -top-2 -right-2 w-8 h-8 rounded-sm opacity-20" style={{ backgroundColor: color }} />
       <div className="absolute -bottom-1 -left-1 w-6 h-6 rounded-sm opacity-15" style={{ backgroundColor: color }} />
-      
+
       <div
         className="relative w-12 h-12 rounded-lg flex items-center justify-center mb-4 text-white"
         style={{ backgroundColor: color, boxShadow: `0 4px 20px ${color}50` }}
@@ -352,7 +413,7 @@ export default function LandingPage() {
         {/* Decorative mosaic clusters on sides */}
         <MosaicCluster position="left" />
         <MosaicCluster position="right" />
-        
+
         <div className="max-w-4xl mx-auto text-center relative z-10">
           {/* Floating mosaic pieces around text */}
           <div className="absolute -top-16 left-1/4 w-16 h-16 rounded-md bg-accent-purple/40 rotate-12 animate-bounce" style={{ animationDuration: "3s", boxShadow: "0 0 30px #8b5cf640" }} />
@@ -371,7 +432,7 @@ export default function LandingPage() {
             <span className="text-text-primary">of Your Finances</span>
           </h1>
           <p className="text-xl text-text-secondary mb-8 max-w-2xl mx-auto leading-relaxed">
-            Every transaction is a tile in your financial mosaic. Budget Flow connects them all, 
+            Every transaction is a tile in your financial mosaic. Budget Flow connects them all,
             giving you AI-powered insights to build a clearer picture of where your money goes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -406,7 +467,7 @@ export default function LandingPage() {
               Every Piece Matters
             </h2>
             <p className="text-text-secondary max-w-2xl mx-auto">
-              Like a mosaic, your financial health is made up of many small pieces. 
+              Like a mosaic, your financial health is made up of many small pieces.
               Our tools help you see how they all fit together.
             </p>
           </div>
@@ -516,7 +577,7 @@ export default function LandingPage() {
         <div className="absolute bottom-4 left-20 w-4 h-4 rounded-sm bg-accent-blue/25" />
         <div className="absolute bottom-2 right-12 w-5 h-5 rounded-sm bg-accent-green/20" />
         <div className="absolute bottom-6 right-24 w-3 h-3 rounded-sm bg-accent-pink/25" />
-        
+
         <div className="relative max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             {/* Logo with mosaic effect */}
@@ -536,7 +597,7 @@ export default function LandingPage() {
             <a href="#" className="text-text-secondary hover:text-text-primary transition-colors text-sm">Terms</a>
             <a href="https://github.com" target="_blank" className="text-text-secondary hover:text-text-primary transition-colors">
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
               </svg>
             </a>
           </div>

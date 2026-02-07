@@ -23,7 +23,7 @@ function getNodeColor(name: string): string {
 export default function SankeyDiagram({ data }: { data: SankeyData }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
+  const [dimensions, setDimensions] = useState({ width: 1400, height: 600 });
   const [tooltip, setTooltip] = useState<{
     show: boolean;
     x: number;
