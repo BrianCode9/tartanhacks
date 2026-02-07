@@ -16,6 +16,8 @@ import {
   Area,
 } from "recharts";
 import { useBudgetData } from "@/lib/use-budget-data";
+import { buildBudgetVsActualSankeyData, mockBudgetPlan } from "@/lib/mock-data";
+import SankeyDiagram from "@/components/SankeyDiagram";
 import {
   TrendingUp,
   ShoppingCart,
@@ -23,6 +25,7 @@ import {
   CreditCard,
   Loader2,
   Database,
+  GitCompareArrows,
 } from "lucide-react";
 
 const RADIAN = Math.PI / 180;
@@ -67,6 +70,23 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 export default function StatisticsPage() {
   const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData();
 
+  // Avoid hook-order issues by keeping these as plain derived values.
+  const budgetVsActualSankey =
+    categories.length > 0
+      ? buildBudgetVsActualSankeyData(mockBudgetPlan, categories)
+      : null;
+
+  const budgetVariance = mockBudgetPlan.map((plan) => {
+    const actual = categories.find((c) => c.name.toLowerCase() === plan.name.toLowerCase());
+    const actualAmount = actual ? actual.amount : 0;
+    return {
+      name: plan.name,
+      budgeted: plan.budgeted,
+      actual: actualAmount,
+      diff: actualAmount - plan.budgeted,
+    };
+  });
+
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
@@ -92,6 +112,10 @@ export default function StatisticsPage() {
     (sum, m) => sum + m.visits,
     0
   );
+
+  const totalBudgeted = mockBudgetPlan.reduce((s, p) => s + p.budgeted, 0);
+  const totalOverBudget = budgetVariance.filter((v) => v.diff > 0).reduce((s, v) => s + v.diff, 0);
+  const totalUnderBudget = budgetVariance.filter((v) => v.diff < 0).reduce((s, v) => s + Math.abs(v.diff), 0);
 
   const pieData = categories.map((cat) => ({
     name: cat.name,
@@ -175,6 +199,80 @@ export default function StatisticsPage() {
           );
         })}
       </div>
+
+      {/* Budget vs Actual Sankey */}
+      {budgetVsActualSankey && (
+        <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-accent-purple/10 p-2 rounded-lg">
+                <GitCompareArrows className="w-5 h-5 text-accent-purple" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-text-primary">
+                  Budget vs Actual Spending
+                </h2>
+                <p className="text-sm text-text-secondary">
+                  See how your actual spending compares to your budget plan
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-accent-green" />
+                <span className="text-text-secondary">Under Budget</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-accent-red" />
+                <span className="text-text-secondary">Over Budget</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary stats row */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="bg-bg-primary/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Total Budgeted</p>
+              <p className="text-lg font-bold text-text-primary">${totalBudgeted.toLocaleString()}</p>
+            </div>
+            <div className="bg-accent-green/5 border border-accent-green/20 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Saved (Under Budget)</p>
+              <p className="text-lg font-bold text-accent-green">${totalUnderBudget.toLocaleString()}</p>
+            </div>
+            <div className="bg-accent-red/5 border border-accent-red/20 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Overspent</p>
+              <p className="text-lg font-bold text-accent-red">${totalOverBudget.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <SankeyDiagram data={budgetVsActualSankey} />
+
+          {/* Per-category breakdown */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {budgetVariance.map((v) => (
+              <div
+                key={v.name}
+                className={`rounded-lg p-2 text-center text-xs ${
+                  v.diff > 0
+                    ? "bg-accent-red/10 border border-accent-red/20"
+                    : v.diff < 0
+                    ? "bg-accent-green/10 border border-accent-green/20"
+                    : "bg-bg-primary/50 border border-border-main"
+                }`}
+              >
+                <p className="text-text-secondary truncate">{v.name}</p>
+                <p
+                  className={`font-bold ${
+                    v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
+                  }`}
+                >
+                  {v.diff > 0 ? "+" : ""}${v.diff.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
