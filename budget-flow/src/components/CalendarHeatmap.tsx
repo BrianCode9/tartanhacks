@@ -21,43 +21,43 @@ const EVENT_COLORS: Record<string, string> = {
   other: "bg-accent-teal",
 };
 
-function getIntensityColor(amount: number, max: number): string {
-  if (amount === 0) return "bg-bg-card border border-border-main";
-  const ratio = amount / max;
-  if (ratio < 0.2) return "bg-accent-green/40";
-  if (ratio < 0.4) return "bg-accent-green/60";
-  if (ratio < 0.6) return "bg-accent-yellow/60";
-  if (ratio < 0.8) return "bg-accent-yellow/80";
-  return "bg-accent-red/80";
+// Use absolute thresholds for spending colors (not relative to max)
+// Based on a reasonable daily budget of ~$100
+function getIntensityColor(amount: number): string {
+  if (amount === 0) return "bg-accent-green/30";     // No spending - light green (good!)
+  if (amount < 50) return "bg-accent-green/50";      // Very low - green
+  if (amount < 100) return "bg-accent-green/80";     // Low - darker green  
+  if (amount < 150) return "bg-accent-yellow/60";    // Moderate - yellow
+  if (amount < 250) return "bg-accent-yellow/90";    // High - orange/yellow
+  return "bg-accent-red/80";                          // Very high - red
 }
 
 function getEventColor(category: string): string {
   return EVENT_COLORS[category] || EVENT_COLORS.other;
 }
 
-function getIntensityLabel(amount: number, max: number): string {
-  if (amount === 0) return "No spending";
-  const ratio = amount / max;
-  if (ratio < 0.2) return "Very low";
-  if (ratio < 0.4) return "Low";
-  if (ratio < 0.6) return "Moderate";
-  if (ratio < 0.8) return "High";
+function getIntensityLabel(amount: number): string {
+  if (amount === 0) return "No spending - great!";
+  if (amount < 50) return "Very low";
+  if (amount < 100) return "Low";
+  if (amount < 150) return "Moderate";
+  if (amount < 250) return "High";
   return "Very high";
 }
 
-function getIntensityTextColor(amount: number, max: number): string {
-  if (amount === 0) return "text-text-secondary";
-  const ratio = amount / max;
-  if (ratio < 0.2) return "text-accent-green";
-  if (ratio < 0.4) return "text-accent-green";
-  if (ratio < 0.6) return "text-accent-yellow";
-  if (ratio < 0.8) return "text-accent-yellow";
+function getIntensityTextColor(amount: number): string {
+  if (amount === 0) return "text-accent-green";      // $0 is good!
+  if (amount < 50) return "text-accent-green";
+  if (amount < 100) return "text-accent-green";
+  if (amount < 150) return "text-accent-yellow";
+  if (amount < 250) return "text-accent-yellow";
   return "text-accent-red";
 }
 
 interface DayData extends DailySpending {
   event?: PlannedEvent;
   dayOfMonth: number;
+  isFuture: boolean;
 }
 
 // Format date to YYYY-MM-DD string
@@ -82,8 +82,6 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
     events.forEach((event) => map.set(event.date, event));
     return map;
   }, [events]);
-
-  const maxAmount = useMemo(() => Math.max(...data.map((d) => d.amount), 1), [data]);
 
   // Generate months to display (past 3 months + current + next 2 months)
   const months: MonthData[] = useMemo(() => {
@@ -121,6 +119,8 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
         const dateStr = formatDate(year, month, day);
         const dayData = dataMap.get(dateStr);
         const event = eventsMap.get(dateStr);
+        const dayDate = new Date(year, month, day);
+        const isFuture = dayDate > today;
         
         const dayInfo: DayData = {
           date: dateStr,
@@ -128,6 +128,7 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
           transactions: dayData?.transactions || 0,
           event,
           dayOfMonth: day,
+          isFuture,
         };
         
         currentWeek.push(dayInfo);
@@ -192,9 +193,21 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
                       return <div key={dayIndex} className="w-full aspect-square" />;
                     }
                     
+                    // Future dates without events show neutral, future with events show event color
                     const bgColor = day.event 
                       ? getEventColor(day.event.category)
-                      : getIntensityColor(day.amount, maxAmount);
+                      : day.isFuture 
+                        ? "bg-bg-card border border-border-main"  // Future: neutral
+                        : getIntensityColor(day.amount);           // Past: spending-based
+                    
+                    // Determine text color based on background
+                    const textColor = day.event 
+                      ? "text-white" 
+                      : day.isFuture
+                        ? "text-text-secondary"  // Future: muted text
+                        : day.amount === 0 
+                          ? "text-accent-green"  // $0 past: dark green text on light green bg
+                          : "text-white/90";     // Spending: white text on colored bg
                     
                     return (
                       <div
@@ -204,7 +217,7 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
                         onMouseLeave={() => setHoveredDay(null)}
                         onClick={() => onDayClick?.(day)}
                       >
-                        <span className={`text-xs font-medium ${day.event ? "text-white" : day.amount > 0 ? "text-white/80" : "text-text-secondary"}`}>
+                        <span className={`text-xs font-medium ${textColor}`}>
                           {day.dayOfMonth}
                         </span>
                         {day.event && (
@@ -227,13 +240,14 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
         <div className="flex items-center gap-2">
           <span>Spending:</span>
           <div className="flex gap-1 items-center">
-            <span className="text-xs">Low</span>
-            <div className="w-4 h-4 rounded bg-accent-green/40" />
-            <div className="w-4 h-4 rounded bg-accent-green/60" />
-            <div className="w-4 h-4 rounded bg-accent-yellow/60" />
-            <div className="w-4 h-4 rounded bg-accent-yellow/80" />
-            <div className="w-4 h-4 rounded bg-accent-red/80" />
-            <span className="text-xs">High</span>
+            <span className="text-xs">$0</span>
+            <div className="w-4 h-4 rounded bg-accent-green/30" title="$0" />
+            <div className="w-4 h-4 rounded bg-accent-green/50" title="< $50" />
+            <div className="w-4 h-4 rounded bg-accent-green/80" title="$50-100" />
+            <div className="w-4 h-4 rounded bg-accent-yellow/60" title="$100-150" />
+            <div className="w-4 h-4 rounded bg-accent-yellow/90" title="$150-250" />
+            <div className="w-4 h-4 rounded bg-accent-red/80" title="> $250" />
+            <span className="text-xs">$250+</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -281,12 +295,14 @@ export default function CalendarHeatmap({ data, events = [], onDayClick }: Calen
                 <p className="text-xs text-text-secondary mt-1">{hoveredDay.event.notes}</p>
               )}
             </div>
+          ) : hoveredDay.isFuture && !hoveredDay.event ? (
+            <p className="text-sm text-text-secondary">No data yet</p>
           ) : (
             <>
-              <p className={`text-xl font-bold ${getIntensityTextColor(hoveredDay.amount, maxAmount)}`}>${hoveredDay.amount.toFixed(2)}</p>
+              <p className={`text-xl font-bold ${getIntensityTextColor(hoveredDay.amount)}`}>${hoveredDay.amount.toFixed(2)}</p>
               <p className="text-xs text-text-secondary mt-1">
                 {hoveredDay.transactions} transaction{hoveredDay.transactions !== 1 ? "s" : ""} •{" "}
-                {getIntensityLabel(hoveredDay.amount, maxAmount)}
+                {getIntensityLabel(hoveredDay.amount)}
               </p>
             </>
           )}
