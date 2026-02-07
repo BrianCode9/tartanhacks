@@ -19,6 +19,7 @@ import {
   mockMonthlySpending,
   mockMerchants,
 } from "./mock-data";
+import { useUser } from "./user-context";
 
 export interface BudgetData {
   categories: SpendingCategory[];
@@ -35,7 +36,9 @@ export interface BudgetData {
   updateSubcategory: (categoryName: string, subcategoryName: string, amount: number) => void;
 }
 
-export function useBudgetData(userId?: string): BudgetData {
+export function useBudgetData(userIdParam?: string): BudgetData {
+  const { user } = useUser();
+  const userId = userIdParam || user?.id;
   const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "addCategory" | "removeCategory" | "updateCategoryColor" | "updateCategory" | "updateSubcategory">>({
     categories: [],
     income: 0,
@@ -129,7 +132,12 @@ export function useBudgetData(userId?: string): BudgetData {
       }
 
       try {
-        // Fetch transactions for the user
+        // Fetch user data to get monthly income
+        const userRes = await fetch(`/api/auth/user?userId=${userId}`);
+        if (!userRes.ok) throw new Error("Failed to fetch user data");
+        const userData = await userRes.json();
+
+        // Fetch transactions for the user (from ALL accounts)
         const res = await fetch(`/api/transactions?userId=${userId}`);
         if (!res.ok) throw new Error("Failed to fetch transactions");
 
@@ -144,8 +152,8 @@ export function useBudgetData(userId?: string): BudgetData {
         const monthlySpending = calculateMonthlySpending(transactions);
         const merchants = calculateMerchantSpending(transactions);
 
-        // Calculate income as total positive balance (simplified for now)
-        const income = mockIncome; // Could fetch from accounts in the future
+        // Use monthly income from user profile
+        const income = Number(userData.monthlyIncome) || mockIncome;
 
         if (!cancelled) {
           setState({

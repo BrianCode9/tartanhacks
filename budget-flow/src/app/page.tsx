@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/lib/user-context";
 
 // Pre-computed mosaic tiles - varying sizes and opacities for artistic effect
 const MOSAIC_TILES = [
@@ -124,6 +125,7 @@ function MosaicBackground() {
 // Login Modal Component
 function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => void; mode: "login" | "signup" }) {
   const router = useRouter();
+  const { setUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -153,6 +155,16 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
         setError(data.message || "Authentication failed");
         setLoading(false);
         return;
+      }
+
+      // Save user to context
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          monthlyIncome: data.user.monthlyIncome,
+        });
       }
 
       // Success - redirect to dashboard

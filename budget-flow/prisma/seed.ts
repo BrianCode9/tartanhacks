@@ -4,11 +4,11 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 const DEMO_USERS = [
-    { name: 'Alex Johnson', email: 'alex.johnson@gmail.com', password: 'root' },
-    { name: 'Jordan Smith', email: 'jordan.smith@gmail.com', password: 'root' },
-    { name: 'Taylor Williams', email: 'taylor.williams@gmail.com', password: 'root' },
-    { name: 'Morgan Brown', email: 'morgan.brown@gmail.com', password: 'root' },
-    { name: 'Casey Davis', email: 'casey.davis@gmail.com', password: 'root' },
+    { name: 'Alex Johnson', email: 'alex.johnson@gmail.com', password: 'root', monthlyIncome: 5500 },
+    { name: 'Jordan Smith', email: 'jordan.smith@gmail.com', password: 'root', monthlyIncome: 6200 },
+    { name: 'Taylor Williams', email: 'taylor.williams@gmail.com', password: 'root', monthlyIncome: 4800 },
+    { name: 'Morgan Brown', email: 'morgan.brown@gmail.com', password: 'root', monthlyIncome: 7000 },
+    { name: 'Casey Davis', email: 'casey.davis@gmail.com', password: 'root', monthlyIncome: 5200 },
 ];
 
 const MERCHANTS = [
@@ -65,6 +65,7 @@ async function main() {
                 name: userData.name,
                 email: userData.email,
                 passwordHash,
+                monthlyIncome: userData.monthlyIncome,
             },
         });
 

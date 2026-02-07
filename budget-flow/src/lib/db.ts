@@ -69,6 +69,15 @@ export async function validateCredentials(
 ): Promise<User | null> {
     const user = await prisma.user.findUnique({
         where: { email: email.toLowerCase() },
+        select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true,
+            monthlyIncome: true,
+            createdAt: true,
+            updatedAt: true,
+        },
     });
 
     if (!user) {
@@ -92,5 +101,6 @@ export function toUserSession(user: User): UserSession {
         id: user.id,
         name: user.name,
         email: user.email,
+        monthlyIncome: user.monthlyIncome ? Number(user.monthlyIncome) : undefined,
     };
 }

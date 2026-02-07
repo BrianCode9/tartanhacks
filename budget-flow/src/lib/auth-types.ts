@@ -4,6 +4,7 @@ export interface User {
     name: string;
     email: string;
     passwordHash: string;
+    monthlyIncome?: number;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -12,6 +13,7 @@ export interface UserSession {
     id: string;
     name: string;
     email: string;
+    monthlyIncome?: number;
 }
 
 export interface RegisterRequest {
