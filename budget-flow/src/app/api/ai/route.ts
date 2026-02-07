@@ -25,16 +25,22 @@ Return your response as JSON with this structure:
 }`;
         break;
       case "strategy":
-        systemMessage = `You are a financial strategist AI. Given the user's budget summary, generate a workflow of budget strategies,
-future purchasing recommendations, and money-saving suggestions. Return as JSON:
+        systemMessage = `You are a visionary financial strategist AI. Your goal is to define a "Financial Mission" for the user based on their spending habits and income, and then map out strategies to achieve it.
+
+First, identify a single, overarching "Financial Mission" (e.g., "Achieve Financial Independence," "Maximize Travel Experiences," "Debt-Free Living").
+Then, generate goals, strategies, and specific actions that support this mission.
+
+Return as JSON:
 {
   "nodes": [
-    { "id": "n1", "type": "income|goal|strategy|suggestion|warning", "label": "Title", "description": "Details", "amount": 100 }
+    { "id": "n1", "type": "mission|income|goal|strategy|suggestion|warning", "label": "Title", "description": "Details", "amount": 100 }
   ],
   "edges": [
     { "source": "n1", "target": "n2", "label": "connection reason" }
   ]
-}`;
+}
+
+Ensure the 'mission' node is the central root of the strategy graph.`;
         break;
       case "budget-flow-proposal":
         systemMessage = `Propose a realistic monthly budget as JSON only. Adjust spending, add savings, merge small categories.
@@ -98,7 +104,7 @@ Return your response as JSON:
         Authorization: `Bearer ${DEDALUS_KEY}`,
       },
       body: JSON.stringify({
-        model: "anthropic/claude-sonnet-4-5",
+        model: process.env.DEDALUS_MODEL_ID || "anthropic/claude-sonnet-4-5",
         messages: [
           { role: "system", content: systemMessage },
           { role: "user", content: prompt },

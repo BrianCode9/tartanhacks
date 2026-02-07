@@ -34,6 +34,7 @@ import {
   Sparkles,
   X,
   Brain,
+  Tag,
 } from "lucide-react";
 
 const RADIAN = Math.PI / 180;
@@ -386,48 +387,101 @@ export default function StatisticsPage() {
     );
   };
 
-  const SimpleTransactionList = ({ title, transactions, total, isOpen, onToggle }: { title: string, transactions: any[], total: number, isOpen: boolean, onToggle: () => void }) => (
-    <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-4">
-      <div
-        className="flex items-center justify-between cursor-pointer"
-        onClick={onToggle}
-      >
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
-          <span className="text-xs bg-bg-secondary px-2 py-1 rounded-full text-text-secondary">
-            {transactions.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="font-bold text-text-primary">${total.toFixed(2)}</span>
-          {isOpen ? <ChevronUp className="w-5 h-5 text-text-secondary" /> : <ChevronDown className="w-5 h-5 text-text-secondary" />}
-        </div>
-      </div>
+  const CategoryGroupedList = ({ title, transactions, total, isOpen, onToggle }: { title: string, transactions: any[], total: number, isOpen: boolean, onToggle: () => void }) => {
+    // Group by category
+    const groups: { [key: string]: { category: string; amount: number; history: any[] } } = {};
 
-      {isOpen && (
-        <div className="mt-4 space-y-3">
-          {transactions.length > 0 ? (
-            transactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between p-3 bg-bg-secondary rounded-lg border border-border-main">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-accent-blue/20 flex items-center justify-center text-accent-blue">
-                    <CreditCard className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{tx.merchant?.name || tx.description}</p>
-                    <p className="text-xs text-text-secondary">{new Date(tx.transactionDate).toLocaleDateString()} • {tx.merchant?.category || 'Uncategorized'}</p>
-                  </div>
-                </div>
-                <p className="font-semibold text-text-primary">${tx.amount.toFixed(2)}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-text-secondary">No transactions found.</p>
-          )}
+    transactions.forEach(tx => {
+      const cat = tx.merchant?.category || 'Uncategorized';
+      if (!groups[cat]) {
+        groups[cat] = {
+          category: cat,
+          amount: 0,
+          history: []
+        };
+      }
+      groups[cat].amount += tx.amount;
+      groups[cat].history.push(tx);
+    });
+
+    const sortedGroups = Object.values(groups).sort((a, b) => b.amount - a.amount);
+    const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+    return (
+      <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-4">
+        <div
+          className="flex items-center justify-between cursor-pointer"
+          onClick={onToggle}
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
+            <span className="text-xs bg-bg-secondary px-2 py-1 rounded-full text-text-secondary">
+              {sortedGroups.length} categories
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-text-primary">${total.toFixed(2)}</span>
+            {isOpen ? <ChevronUp className="w-5 h-5 text-text-secondary" /> : <ChevronDown className="w-5 h-5 text-text-secondary" />}
+          </div>
         </div>
-      )}
-    </div>
-  );
+
+        {isOpen && (
+          <div className="mt-4 space-y-3">
+            {sortedGroups.length > 0 ? (
+              sortedGroups.map((group) => {
+                const isExpanded = expandedCategory === group.category;
+                return (
+                  <div key={group.category} className="bg-bg-secondary rounded-lg border border-border-main overflow-hidden">
+                    {/* Category Row */}
+                    <div
+                      className="flex items-center justify-between p-3 cursor-pointer hover:bg-bg-primary/50 transition-colors"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedCategory(isExpanded ? null : group.category);
+                      }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-accent-purple/20 flex items-center justify-center text-accent-purple">
+                          <Tag className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">{group.category}</p>
+                          <p className="text-xs text-text-secondary">{group.history.length} transactions</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="font-semibold text-text-primary">${group.amount.toFixed(2)}</p>
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-text-secondary" /> : <ChevronDown className="w-4 h-4 text-text-secondary" />}
+                      </div>
+                    </div>
+
+                    {/* Expanded History */}
+                    {isExpanded && (
+                      <div className="p-3 border-t border-border-main bg-bg-primary/30">
+                        <div className="space-y-2">
+                          {group.history.sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()).map((tx: any) => (
+                            <div key={tx.id} className="flex items-center justify-between text-sm">
+                              <div className="flex flex-col">
+                                <span className="text-text-primary">{tx.merchant?.name || tx.description}</span>
+                                <span className="text-xs text-text-secondary">{new Date(tx.transactionDate).toLocaleDateString()}</span>
+                              </div>
+                              <span className="text-text-primary font-medium">${tx.amount.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-text-secondary">No day-to-day expenses found.</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="p-8">
@@ -574,8 +628,8 @@ export default function StatisticsPage() {
           onToggle={() => setShowSubscriptions(!showSubscriptions)}
         />
 
-        <SimpleTransactionList
-          title="Day-to-day Expenses"
+        <CategoryGroupedList
+          title="Day-to-Day Expenses (by Category)"
           transactions={dayToDayTrans}
           total={totalDayToDay}
           isOpen={showDayToDay}

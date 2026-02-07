@@ -25,17 +25,26 @@ import {
   AlertTriangle,
   TrendingUp,
   X,
+  Flag,
 } from "lucide-react";
 
 interface StrategyNodeData {
   label: string;
   description: string;
   amount?: number;
-  nodeType: "income" | "goal" | "strategy" | "suggestion" | "warning";
+  nodeType: "income" | "goal" | "strategy" | "suggestion" | "warning" | "mission";
   [key: string]: unknown;
 }
 
 const nodeTypeConfig = {
+  mission: {
+    icon: Flag,
+    bg: "bg-amber-500/20",
+    border: "border-amber-500/40",
+    iconColor: "text-amber-500",
+    accent: "#f59e0b",
+    label: "Mission",
+  },
   income: {
     icon: DollarSign,
     bg: "bg-accent-green/20",
@@ -192,7 +201,7 @@ function DetailCard({ data, onClose }: DetailCardProps) {
 interface Props {
   strategyNodes: {
     id: string;
-    type: "income" | "goal" | "strategy" | "suggestion" | "warning";
+    type: "income" | "goal" | "strategy" | "suggestion" | "warning" | "mission";
     label: string;
     description: string;
     amount?: number;
@@ -246,10 +255,11 @@ export default function StrategyGraphComponent({
 
   const initialNodes: Node[] = useMemo(() => {
     const columns: Record<string, number> = {
+      mission: 1,
       income: 0,
-      goal: 1,
+      goal: 2,
       strategy: 2,
-      suggestion: 2,
+      suggestion: 3,
       warning: 3,
     };
     const columnCounts: Record<number, number> = {};

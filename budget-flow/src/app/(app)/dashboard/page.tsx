@@ -386,10 +386,22 @@ export default function DashboardPage() {
       const aiData = await aiRes.json();
 
       // 5. Parse response (handle markdown fence wrapping)
+      // 5. Parse response (handle markdown fence wrapping or conversational text)
       let responseText = aiData.response;
-      if (responseText.startsWith("```")) {
-        responseText = responseText.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+
+      // Try to find a JSON block first
+      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (jsonMatch && jsonMatch[1]) {
+        responseText = jsonMatch[1];
+      } else if (responseText.includes("{")) {
+        // If no code blocks, try to find the first '{' and last '}'
+        const firstOpen = responseText.indexOf("{");
+        const lastClose = responseText.lastIndexOf("}");
+        if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+          responseText = responseText.substring(firstOpen, lastClose + 1);
+        }
       }
+
       const parsed = JSON.parse(responseText);
 
       // 6. Set categories

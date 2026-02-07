@@ -50,7 +50,7 @@ export interface BudgetSankeyData {
 
 export interface StrategyNode {
   id: string;
-  type: "income" | "goal" | "strategy" | "suggestion" | "warning";
+  type: "income" | "goal" | "strategy" | "suggestion" | "warning" | "mission";
   label: string;
   description: string;
   amount?: number;
