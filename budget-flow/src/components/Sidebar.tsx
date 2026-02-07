@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   GitBranch,
@@ -18,6 +17,7 @@ import {
   Landmark,
 } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
+import { useUser } from "@/lib/user-context";
 
 const navItems = [
   { href: "/dashboard", label: "Budget Flow", icon: LayoutDashboard },
@@ -33,45 +33,17 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  accountID: string;
-}
-
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggleTheme, mounted } = useTheme();
-  const [user, setUser] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // Fetch user data
-  useEffect(() => {
-    async function fetchUser() {
-      try {
-        const response = await fetch("/api/user");
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-        }
-      } catch (error) {
-        console.error("Failed to fetch user:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchUser();
-  }, []);
+  const { user, isLoading: loading, logout } = useUser();
 
   // Handle logout
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/");
-      router.refresh();
+      logout();
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -179,9 +151,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text-primary truncate">
-                  {loading ? "Loading..." : (user?.name || "Guest")}
+                  {loading ? "Loading..." : (user?.name || "User")}
                 </p>
-                <p className="text-xs text-text-secondary">Free Plan</p>
+                <p className="text-xs text-text-secondary truncate">
+                  {user?.email || "Free Plan"}
+                </p>
               </div>
               <button
                 onClick={handleLogout}

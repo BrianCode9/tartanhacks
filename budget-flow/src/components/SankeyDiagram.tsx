@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import * as d3 from "d3";
 import { sankey, sankeyLinkHorizontal, sankeyCenter, SankeyNode, SankeyLink } from "d3-sankey";
 
@@ -21,8 +21,16 @@ function getNodeColor(node: SankeyNodeExtra): string {
   return node.color || colorScale(node.name);
 }
 
-export default function SankeyDiagram({ data }: { data: SankeyData }) {
+export interface SankeyDiagramHandle {
+  getSvgElement: () => SVGSVGElement | null;
+}
+
+const SankeyDiagram = forwardRef<SankeyDiagramHandle, { data: SankeyData }>(function SankeyDiagram({ data }, ref) {
   const svgRef = useRef<SVGSVGElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    getSvgElement: () => svgRef.current,
+  }));
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 1400, height: 600 });
   const [tooltip, setTooltip] = useState<{
@@ -289,4 +297,6 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
       )}
     </div>
   );
-}
+});
+
+export default SankeyDiagram;
