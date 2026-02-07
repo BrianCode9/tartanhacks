@@ -87,3 +87,19 @@ export interface MerchantSpending {
   category: string;
   visits: number;
 }
+
+// Planner Types
+export interface DailySpending {
+  date: string; // YYYY-MM-DD
+  amount: number;
+  transactions: number;
+}
+
+export interface PlannedEvent {
+  id: string;
+  name: string;
+  date: string; // YYYY-MM-DD
+  estimatedCost: number;
+  category: "vacation" | "holiday" | "purchase" | "event" | "other";
+  notes?: string;
+}
