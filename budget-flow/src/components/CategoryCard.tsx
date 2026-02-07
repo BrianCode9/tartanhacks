@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect } from "react";
 import { SpendingCategory } from "@/lib/types";
-import { Check, X, Edit2 } from "lucide-react";
+import { Check, X, Edit2, Trash2 } from "lucide-react";
 
 interface CategoryCardProps {
     category: SpendingCategory;
     onUpdateSubcategory: (subName: string, amount: number) => void;
+    onDeleteCategory?: (categoryName: string) => void;
+    onUpdateCategoryColor?: (categoryName: string, color: string) => void;
 }
 
 // Reusable component for editable amount
@@ -85,7 +87,7 @@ function EditableAmount({
     );
 }
 
-export default function CategoryCard({ category, onUpdateSubcategory }: CategoryCardProps) {
+export default function CategoryCard({ category, onUpdateSubcategory, onDeleteCategory, onUpdateCategoryColor }: CategoryCardProps) {
     return (
         <div className="bg-bg-card border border-border-main rounded-xl p-5 hover:bg-bg-card-hover transition-colors group">
             <div className="flex items-center justify-between mb-3">
@@ -95,11 +97,37 @@ export default function CategoryCard({ category, onUpdateSubcategory }: Category
                         style={{ backgroundColor: category.color }}
                     />
                     <h3 className="font-medium text-text-primary">{category.name}</h3>
+                    {onUpdateCategoryColor && (
+                        <input
+                            type="color"
+                            value={category.color}
+                            onChange={(e) => onUpdateCategoryColor(category.name, e.target.value)}
+                            className="w-7 h-7 p-0.5 bg-transparent border border-border-main rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            aria-label={`Change ${category.name} color`}
+                            title="Change color"
+                        />
+                    )}
                 </div>
 
                 {/* Main Category Amount is READ-ONLY */}
-                <div className="text-lg font-bold text-text-primary">
-                    ${category.amount.toLocaleString()}
+                <div className="flex items-center gap-2">
+                    <div className="text-lg font-bold text-text-primary">
+                        ${category.amount.toLocaleString()}
+                    </div>
+                    {onDeleteCategory && (
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onDeleteCategory(category.name);
+                            }}
+                            className="p-1 rounded hover:bg-accent-red/15 text-text-muted hover:text-accent-red opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label={`Delete ${category.name}`}
+                            title="Delete category"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
             </div>
 

@@ -7,7 +7,6 @@ import CategoryCard from "@/components/CategoryCard";
 import { buildSankeyData } from "@/lib/mock-data";
 import { useBudgetData } from "@/lib/use-budget-data";
 import {
-  TrendingUp,
   TrendingDown,
   Wallet,
   PiggyBank,
@@ -15,10 +14,10 @@ import {
   ArrowDownRight,
   Loader2,
   Database,
-  Lightbulb,
   AlertTriangle,
   Target,
   CalendarDays,
+  Plus,
   Check,
   X,
   Edit2,
@@ -29,6 +28,25 @@ function parseCurrencyLikeInput(value: string): number {
   const cleaned = value.replace(/[^0-9.-]/g, "");
   const parsed = Number.parseFloat(cleaned);
   return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+const CATEGORY_COLOR_PALETTE = [
+  "#6366f1", // indigo
+  "#10b981", // emerald
+  "#f59e0b", // amber
+  "#ec4899", // pink
+  "#8b5cf6", // violet
+  "#ef4444", // red
+  "#14b8a6", // teal
+  "#3b82f6", // blue
+  "#22c55e", // green
+  "#eab308", // yellow
+];
+
+function pickNextCategoryColor(used: string[]): string {
+  const usedSet = new Set(used.map((c) => c.toLowerCase()));
+  const next = CATEGORY_COLOR_PALETTE.find((c) => !usedSet.has(c.toLowerCase()));
+  return next ?? CATEGORY_COLOR_PALETTE[0];
 }
 
 function EditableIncome({
@@ -140,7 +158,25 @@ function EditableIncome({
 }
 
 export default function DashboardPage() {
-  const { categories, income, isLoading, isUsingMockData, updateIncome, updateCategory, updateSubcategory } = useBudgetData();
+  const { categories, income, isLoading, isUsingMockData, updateIncome, addCategory, removeCategory, updateCategoryColor, updateSubcategory } = useBudgetData();
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryAmount, setNewCategoryAmount] = useState("");
+  const [newCategoryColor, setNewCategoryColor] = useState<string>("");
+  const [addCategoryError, setAddCategoryError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!showAddCategory) {
+      setAddCategoryError(null);
+      setNewCategoryName("");
+      setNewCategoryAmount("");
+      setNewCategoryColor("");
+    } else {
+      setNewCategoryColor((c) =>
+        c || pickNextCategoryColor(categories.map((cat) => cat.color))
+      );
+    }
+  }, [showAddCategory, categories]);
 
   const sankeyData = useMemo(
     () => (categories.length > 0 ? buildSankeyData(income, categories) : null),
@@ -148,8 +184,10 @@ export default function DashboardPage() {
   );
 
   const totalSpending = categories.reduce((sum, cat) => sum + cat.amount, 0);
+  const savingsCategory = categories.find((cat) => cat.name.toLowerCase().includes("saving"));
+  const netSavings = savingsCategory ? savingsCategory.amount : Math.max(0, income - totalSpending);
   const savingsRate =
-    income > 0 ? (((income - totalSpending) / income) * 100).toFixed(1) : "0";
+    income > 0 ? ((netSavings / income) * 100).toFixed(1) : "0";
 
   if (isLoading) {
     return (
@@ -183,21 +221,12 @@ export default function DashboardPage() {
     },
     {
       label: "Net Savings",
-      value: `$${(income - totalSpending).toLocaleString()}`,
+      value: `$${netSavings.toLocaleString()}`,
       icon: PiggyBank,
       trend: `${savingsRate}%`,
-      trendUp: true,
+      trendUp: netSavings > 0,
       color: "text-accent-teal",
       bgColor: "bg-accent-teal/10",
-    },
-    {
-      label: "Budget Health",
-      value: Number(savingsRate) >= 20 ? "Excellent" : "Good",
-      icon: TrendingUp,
-      trend: "On Track",
-      trendUp: true,
-      color: "text-accent-blue",
-      bgColor: "bg-accent-blue/10",
     },
   ];
 
@@ -220,7 +249,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         {stats.map((stat) => {
           const Icon = stat.icon;
           const isIncome = stat.label === "Monthly Income";
@@ -346,37 +375,145 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* AI Insight */}
-      <div className="mt-4 bg-gradient-to-r from-accent-blue/10 to-accent-teal/10 border border-accent-blue/20 rounded-xl p-5">
-        <div className="flex items-start gap-3">
-          <div className="bg-accent-blue/20 p-2 rounded-lg">
-            <Lightbulb className="w-5 h-5 text-accent-blue" />
-          </div>
-          <div>
-            <h3 className="font-medium text-text-primary mb-1">AI Insight</h3>
-            <p className="text-sm text-text-secondary">
-              {Number(savingsRate) >= 20
-                ? `Great job! You're saving ${savingsRate}% of your income. Consider investing the extra $${Math.max(0, (income - totalSpending) - (income * 0.2)).toFixed(0)} in an index fund for long-term growth.`
-                : `Your savings rate is ${savingsRate}%. To hit the recommended 20%, try reducing your top spending category by $${((income * 0.2) - (income - totalSpending)).toFixed(0)}/month.`
-              }
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Category Breakdown */}
       <div className="mt-8">
-        <h2 className="text-xl font-semibold text-text-primary mb-4">Edit Categories</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-text-primary">Edit Categories</h2>
+          <button
+            onClick={() => setShowAddCategory(true)}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-bg-card border border-border-main hover:bg-bg-card-hover transition-colors text-sm font-semibold text-text-primary"
+          >
+            <Plus className="w-4 h-4 text-accent-green" />
+            Add category
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {categories.map((cat) => (
             <CategoryCard
               key={cat.name}
               category={cat}
               onUpdateSubcategory={(subName, amount) => updateSubcategory(cat.name, subName, amount)}
+              onUpdateCategoryColor={updateCategoryColor}
+              onDeleteCategory={(categoryName) => {
+                const ok = window.confirm(`Delete category "${categoryName}"?`);
+                if (!ok) return;
+                removeCategory(categoryName);
+              }}
             />
           ))}
         </div>
       </div>
+
+      {/* Add Category Modal */}
+      {showAddCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-bg-card rounded-xl p-6 w-full max-w-md border border-border-main">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-text-primary">Add Category</h2>
+                <p className="text-sm text-text-secondary mt-1">
+                  Create a new spending category (starts with one editable "General" subcategory).
+                </p>
+              </div>
+              <button
+                onClick={() => setShowAddCategory(false)}
+                className="p-2 rounded-lg hover:bg-bg-card-hover transition-colors"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4 text-text-secondary" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mt-5">
+              <div>
+                <label className="block text-sm text-text-secondary mb-1">Name</label>
+                <input
+                  value={newCategoryName}
+                  onChange={(e) => {
+                    setNewCategoryName(e.target.value);
+                    setAddCategoryError(null);
+                  }}
+                  className="w-full px-3 py-2 bg-bg-secondary border border-border-main rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
+                  placeholder="e.g., Education"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-text-secondary mb-1">Monthly Amount</label>
+                  <input
+                    value={newCategoryAmount}
+                    onChange={(e) => {
+                      setNewCategoryAmount(e.target.value);
+                      setAddCategoryError(null);
+                    }}
+                    inputMode="decimal"
+                    className="w-full px-3 py-2 bg-bg-secondary border border-border-main rounded-lg text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-green"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm text-text-secondary mb-1">Color</label>
+                  <input
+                    type="color"
+                    value={newCategoryColor || "#6366f1"}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="w-full h-[42px] bg-bg-secondary border border-border-main rounded-lg p-1"
+                    aria-label="Category color"
+                  />
+                </div>
+              </div>
+
+              {addCategoryError && (
+                <p className="text-sm text-accent-red">{addCategoryError}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowAddCategory(false)}
+                className="flex-1 px-4 py-2 border border-border-main rounded-lg text-text-secondary hover:bg-bg-secondary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const name = newCategoryName.trim();
+                  if (!name) {
+                    setAddCategoryError("Please enter a category name.");
+                    return;
+                  }
+                  const exists = categories.some(
+                    (c) => c.name.trim().toLowerCase() === name.toLowerCase()
+                  );
+                  if (exists) {
+                    setAddCategoryError("A category with that name already exists.");
+                    return;
+                  }
+                  const amt = parseCurrencyLikeInput(newCategoryAmount);
+                  if (!Number.isFinite(amt) || amt < 0) {
+                    setAddCategoryError("Please enter a valid non-negative amount.");
+                    return;
+                  }
+
+                  const rounded = Math.round(amt);
+                  addCategory({
+                    name,
+                    amount: rounded,
+                    color: newCategoryColor || pickNextCategoryColor(categories.map((c) => c.color)),
+                    subcategories: [{ name: "General", amount: rounded }],
+                  });
+                  setShowAddCategory(false);
+                }}
+                className="flex-1 px-4 py-2 bg-accent-green text-white rounded-lg hover:bg-accent-green/90 transition-colors"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
