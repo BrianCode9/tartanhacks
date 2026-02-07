@@ -45,46 +45,46 @@ async function nessieGet<T>(path: string, apiKey: string): Promise<T> {
 // ─── 20 Demo Users ──────────────────────────────────────────────────────────
 
 const USERS = [
-  { first: "Alex",     last: "Johnson",   street_number: "123",  street_name: "Craig St",       city: "Pittsburgh",    state: "PA", zip: "15213", balance: 5000  },
-  { first: "Jordan",   last: "Smith",     street_number: "456",  street_name: "Forbes Ave",     city: "Pittsburgh",    state: "PA", zip: "15213", balance: 7500  },
-  { first: "Taylor",   last: "Williams",  street_number: "789",  street_name: "Fifth Ave",      city: "Pittsburgh",    state: "PA", zip: "15213", balance: 3200  },
-  { first: "Morgan",   last: "Brown",     street_number: "101",  street_name: "Murray Ave",     city: "Pittsburgh",    state: "PA", zip: "15217", balance: 6100  },
-  { first: "Casey",    last: "Davis",     street_number: "202",  street_name: "Walnut St",      city: "Pittsburgh",    state: "PA", zip: "15232", balance: 4800  },
-  { first: "Riley",    last: "Garcia",    street_number: "303",  street_name: "Penn Ave",       city: "Pittsburgh",    state: "PA", zip: "15222", balance: 9200  },
-  { first: "Avery",    last: "Martinez",  street_number: "404",  street_name: "Liberty Ave",    city: "Pittsburgh",    state: "PA", zip: "15224", balance: 2800  },
-  { first: "Quinn",    last: "Anderson",  street_number: "505",  street_name: "Butler St",      city: "Pittsburgh",    state: "PA", zip: "15201", balance: 5500  },
-  { first: "Drew",     last: "Thomas",    street_number: "606",  street_name: "Carson St",      city: "Pittsburgh",    state: "PA", zip: "15203", balance: 8000  },
-  { first: "Jamie",    last: "Jackson",   street_number: "707",  street_name: "Baum Blvd",      city: "Pittsburgh",    state: "PA", zip: "15206", balance: 4200  },
-  { first: "Sam",      last: "White",     street_number: "808",  street_name: "Centre Ave",     city: "Pittsburgh",    state: "PA", zip: "15219", balance: 6700  },
-  { first: "Charlie",  last: "Harris",    street_number: "909",  street_name: "Ellsworth Ave",   city: "Pittsburgh",    state: "PA", zip: "15213", balance: 3500  },
-  { first: "Parker",   last: "Clark",     street_number: "110",  street_name: "Atwood St",      city: "Pittsburgh",    state: "PA", zip: "15213", balance: 5800  },
-  { first: "Dakota",   last: "Lewis",     street_number: "220",  street_name: "Bigelow Blvd",   city: "Pittsburgh",    state: "PA", zip: "15213", balance: 7000  },
-  { first: "Reese",    last: "Robinson",  street_number: "330",  street_name: "Negley Ave",     city: "Pittsburgh",    state: "PA", zip: "15232", balance: 4500  },
-  { first: "Skyler",   last: "Walker",    street_number: "440",  street_name: "Highland Ave",   city: "Pittsburgh",    state: "PA", zip: "15206", balance: 6300  },
-  { first: "Emery",    last: "Young",     street_number: "550",  street_name: "Shady Ave",      city: "Pittsburgh",    state: "PA", zip: "15232", balance: 3800  },
-  { first: "Rowan",    last: "King",      street_number: "660",  street_name: "Smithfield St",  city: "Pittsburgh",    state: "PA", zip: "15222", balance: 9500  },
-  { first: "Sage",     last: "Wright",    street_number: "770",  street_name: "Grant St",       city: "Pittsburgh",    state: "PA", zip: "15219", balance: 5200  },
-  { first: "Finley",   last: "Scott",     street_number: "880",  street_name: "Wood St",        city: "Pittsburgh",    state: "PA", zip: "15222", balance: 4100  },
+  { first: "Alex", last: "Johnson", street_number: "123", street_name: "Craig St", city: "Pittsburgh", state: "PA", zip: "15213", balance: 5000 },
+  { first: "Jordan", last: "Smith", street_number: "456", street_name: "Forbes Ave", city: "Pittsburgh", state: "PA", zip: "15213", balance: 7500 },
+  { first: "Taylor", last: "Williams", street_number: "789", street_name: "Fifth Ave", city: "Pittsburgh", state: "PA", zip: "15213", balance: 3200 },
+  { first: "Morgan", last: "Brown", street_number: "101", street_name: "Murray Ave", city: "Pittsburgh", state: "PA", zip: "15217", balance: 6100 },
+  { first: "Casey", last: "Davis", street_number: "202", street_name: "Walnut St", city: "Pittsburgh", state: "PA", zip: "15232", balance: 4800 },
+  { first: "Riley", last: "Garcia", street_number: "303", street_name: "Penn Ave", city: "Pittsburgh", state: "PA", zip: "15222", balance: 9200 },
+  { first: "Avery", last: "Martinez", street_number: "404", street_name: "Liberty Ave", city: "Pittsburgh", state: "PA", zip: "15224", balance: 2800 },
+  { first: "Quinn", last: "Anderson", street_number: "505", street_name: "Butler St", city: "Pittsburgh", state: "PA", zip: "15201", balance: 5500 },
+  { first: "Drew", last: "Thomas", street_number: "606", street_name: "Carson St", city: "Pittsburgh", state: "PA", zip: "15203", balance: 8000 },
+  { first: "Jamie", last: "Jackson", street_number: "707", street_name: "Baum Blvd", city: "Pittsburgh", state: "PA", zip: "15206", balance: 4200 },
+  { first: "Sam", last: "White", street_number: "808", street_name: "Centre Ave", city: "Pittsburgh", state: "PA", zip: "15219", balance: 6700 },
+  { first: "Charlie", last: "Harris", street_number: "909", street_name: "Ellsworth Ave", city: "Pittsburgh", state: "PA", zip: "15213", balance: 3500 },
+  { first: "Parker", last: "Clark", street_number: "110", street_name: "Atwood St", city: "Pittsburgh", state: "PA", zip: "15213", balance: 5800 },
+  { first: "Dakota", last: "Lewis", street_number: "220", street_name: "Bigelow Blvd", city: "Pittsburgh", state: "PA", zip: "15213", balance: 7000 },
+  { first: "Reese", last: "Robinson", street_number: "330", street_name: "Negley Ave", city: "Pittsburgh", state: "PA", zip: "15232", balance: 4500 },
+  { first: "Skyler", last: "Walker", street_number: "440", street_name: "Highland Ave", city: "Pittsburgh", state: "PA", zip: "15206", balance: 6300 },
+  { first: "Emery", last: "Young", street_number: "550", street_name: "Shady Ave", city: "Pittsburgh", state: "PA", zip: "15232", balance: 3800 },
+  { first: "Rowan", last: "King", street_number: "660", street_name: "Smithfield St", city: "Pittsburgh", state: "PA", zip: "15222", balance: 9500 },
+  { first: "Sage", last: "Wright", street_number: "770", street_name: "Grant St", city: "Pittsburgh", state: "PA", zip: "15219", balance: 5200 },
+  { first: "Finley", last: "Scott", street_number: "880", street_name: "Wood St", city: "Pittsburgh", state: "PA", zip: "15222", balance: 4100 },
 ];
 
 // ─── Merchants ──────────────────────────────────────────────────────────────
 
 const MERCHANTS = [
-  { name: "Whole Foods Market",  category: ["grocery"],        address: { street_number: "100", street_name: "Main St",         city: "Pittsburgh",     state: "PA", zip: "15213" }, geocode: { lat: 40.4406, lng: -79.9959 } },
-  { name: "Starbucks Coffee",    category: ["coffee"],         address: { street_number: "200", street_name: "Forbes Ave",      city: "Pittsburgh",     state: "PA", zip: "15213" }, geocode: { lat: 40.4416, lng: -79.9449 } },
-  { name: "Shell Gas Station",   category: ["gas"],            address: { street_number: "300", street_name: "Fifth Ave",       city: "Pittsburgh",     state: "PA", zip: "15213" }, geocode: { lat: 40.4426, lng: -79.9549 } },
-  { name: "Amazon",              category: ["shopping"],       address: { street_number: "410", street_name: "Terry Ave",       city: "Seattle",        state: "WA", zip: "98109" }, geocode: { lat: 47.6222, lng: -122.3366 } },
-  { name: "Netflix",             category: ["streaming"],      address: { street_number: "100", street_name: "Winchester Cir",  city: "Los Gatos",      state: "CA", zip: "95032" }, geocode: { lat: 37.2529, lng: -121.9547 } },
-  { name: "Spotify",             category: ["streaming"],      address: { street_number: "4",   street_name: "World Trade Ctr", city: "New York",       state: "NY", zip: "10007" }, geocode: { lat: 40.7128, lng: -74.0060 } },
-  { name: "Chipotle",            category: ["restaurant"],     address: { street_number: "500", street_name: "Forbes Ave",      city: "Pittsburgh",     state: "PA", zip: "15213" }, geocode: { lat: 40.4436, lng: -79.9559 } },
-  { name: "Target",              category: ["shopping"],       address: { street_number: "600", street_name: "Penn Ave",        city: "Pittsburgh",     state: "PA", zip: "15222" }, geocode: { lat: 40.4446, lng: -79.9969 } },
-  { name: "CVS Pharmacy",        category: ["pharmacy"],       address: { street_number: "700", street_name: "Murray Ave",      city: "Pittsburgh",     state: "PA", zip: "15217" }, geocode: { lat: 40.4316, lng: -79.9249 } },
-  { name: "Planet Fitness",      category: ["fitness"],        address: { street_number: "800", street_name: "Walnut St",       city: "Pittsburgh",     state: "PA", zip: "15232" }, geocode: { lat: 40.4516, lng: -79.9349 } },
-  { name: "Uber",                category: ["transportation"], address: { street_number: "1455",street_name: "Market St",       city: "San Francisco",  state: "CA", zip: "94103" }, geocode: { lat: 37.7749, lng: -122.4194 } },
-  { name: "Comcast Xfinity",     category: ["utilities"],      address: { street_number: "1701",street_name: "JFK Blvd",        city: "Philadelphia",   state: "PA", zip: "19103" }, geocode: { lat: 39.9526, lng: -75.1652 } },
-  { name: "Trader Joes",         category: ["grocery"],        address: { street_number: "215", street_name: "North Craig St",  city: "Pittsburgh",     state: "PA", zip: "15213" }, geocode: { lat: 40.4450, lng: -79.9510 } },
-  { name: "McDonalds",           category: ["restaurant"],     address: { street_number: "3710",street_name: "Forbes Ave",      city: "Pittsburgh",     state: "PA", zip: "15213" }, geocode: { lat: 40.4390, lng: -79.9570 } },
-  { name: "Duolingo HQ Store",   category: ["education"],      address: { street_number: "5900",street_name: "Penn Ave",        city: "Pittsburgh",     state: "PA", zip: "15206" }, geocode: { lat: 40.4620, lng: -79.9240 } },
+  { name: "Whole Foods Market", category: ["grocery"], address: { street_number: "100", street_name: "Main St", city: "Pittsburgh", state: "PA", zip: "15213" }, geocode: { lat: 40.4406, lng: -79.9959 } },
+  { name: "Starbucks Coffee", category: ["coffee"], address: { street_number: "200", street_name: "Forbes Ave", city: "Pittsburgh", state: "PA", zip: "15213" }, geocode: { lat: 40.4416, lng: -79.9449 } },
+  { name: "Shell Gas Station", category: ["gas"], address: { street_number: "300", street_name: "Fifth Ave", city: "Pittsburgh", state: "PA", zip: "15213" }, geocode: { lat: 40.4426, lng: -79.9549 } },
+  { name: "Amazon", category: ["shopping"], address: { street_number: "410", street_name: "Terry Ave", city: "Seattle", state: "WA", zip: "98109" }, geocode: { lat: 47.6222, lng: -122.3366 } },
+  { name: "Netflix", category: ["streaming"], address: { street_number: "100", street_name: "Winchester Cir", city: "Los Gatos", state: "CA", zip: "95032" }, geocode: { lat: 37.2529, lng: -121.9547 } },
+  { name: "Spotify", category: ["streaming"], address: { street_number: "4", street_name: "World Trade Ctr", city: "New York", state: "NY", zip: "10007" }, geocode: { lat: 40.7128, lng: -74.0060 } },
+  { name: "Chipotle", category: ["restaurant"], address: { street_number: "500", street_name: "Forbes Ave", city: "Pittsburgh", state: "PA", zip: "15213" }, geocode: { lat: 40.4436, lng: -79.9559 } },
+  { name: "Target", category: ["shopping"], address: { street_number: "600", street_name: "Penn Ave", city: "Pittsburgh", state: "PA", zip: "15222" }, geocode: { lat: 40.4446, lng: -79.9969 } },
+  { name: "CVS Pharmacy", category: ["pharmacy"], address: { street_number: "700", street_name: "Murray Ave", city: "Pittsburgh", state: "PA", zip: "15217" }, geocode: { lat: 40.4316, lng: -79.9249 } },
+  { name: "Planet Fitness", category: ["fitness"], address: { street_number: "800", street_name: "Walnut St", city: "Pittsburgh", state: "PA", zip: "15232" }, geocode: { lat: 40.4516, lng: -79.9349 } },
+  { name: "Uber", category: ["transportation"], address: { street_number: "1455", street_name: "Market St", city: "San Francisco", state: "CA", zip: "94103" }, geocode: { lat: 37.7749, lng: -122.4194 } },
+  { name: "Comcast Xfinity", category: ["utilities"], address: { street_number: "1701", street_name: "JFK Blvd", city: "Philadelphia", state: "PA", zip: "19103" }, geocode: { lat: 39.9526, lng: -75.1652 } },
+  { name: "Trader Joes", category: ["grocery"], address: { street_number: "215", street_name: "North Craig St", city: "Pittsburgh", state: "PA", zip: "15213" }, geocode: { lat: 40.4450, lng: -79.9510 } },
+  { name: "McDonalds", category: ["restaurant"], address: { street_number: "3710", street_name: "Forbes Ave", city: "Pittsburgh", state: "PA", zip: "15213" }, geocode: { lat: 40.4390, lng: -79.9570 } },
+  { name: "Duolingo HQ Store", category: ["education"], address: { street_number: "5900", street_name: "Penn Ave", city: "Pittsburgh", state: "PA", zip: "15206" }, geocode: { lat: 40.4620, lng: -79.9240 } },
 ];
 
 // ─── Purchase templates (merchant index, amount range, descriptions) ─────────
@@ -97,21 +97,21 @@ interface PurchaseTemplate {
 }
 
 const PURCHASE_TEMPLATES: PurchaseTemplate[] = [
-  { merchantIdx: 0,  minAmt: 35, maxAmt: 120, descs: ["Weekly groceries", "Groceries", "Organic produce", "Meal prep supplies"] },
-  { merchantIdx: 1,  minAmt: 4,  maxAmt: 8,   descs: ["Latte", "Cold brew", "Drip coffee", "Iced mocha", "Cappuccino"] },
-  { merchantIdx: 2,  minAmt: 30, maxAmt: 55,  descs: ["Gas fill-up", "Fuel", "Gas + car wash"] },
-  { merchantIdx: 3,  minAmt: 12, maxAmt: 200, descs: ["Household items", "Electronics", "Books", "Kitchen supplies", "Clothing"] },
-  { merchantIdx: 4,  minAmt: 15, maxAmt: 23,  descs: ["Monthly subscription"] },
-  { merchantIdx: 5,  minAmt: 10, maxAmt: 17,  descs: ["Monthly subscription"] },
-  { merchantIdx: 6,  minAmt: 9,  maxAmt: 16,  descs: ["Burrito bowl", "Burrito bowl + guac", "Bowl + chips", "Tacos"] },
-  { merchantIdx: 7,  minAmt: 15, maxAmt: 90,  descs: ["Clothing", "Home goods", "Household essentials", "Decor"] },
-  { merchantIdx: 8,  minAmt: 8,  maxAmt: 45,  descs: ["Prescriptions", "OTC medicine", "Vitamins", "First aid supplies"] },
-  { merchantIdx: 9,  minAmt: 20, maxAmt: 35,  descs: ["Monthly membership", "Gym membership"] },
-  { merchantIdx: 10, minAmt: 8,  maxAmt: 35,  descs: ["Ride to campus", "Ride downtown", "Ride to airport", "Ride to grocery"] },
+  { merchantIdx: 0, minAmt: 35, maxAmt: 120, descs: ["Weekly groceries", "Groceries", "Organic produce", "Meal prep supplies"] },
+  { merchantIdx: 1, minAmt: 4, maxAmt: 8, descs: ["Latte", "Cold brew", "Drip coffee", "Iced mocha", "Cappuccino"] },
+  { merchantIdx: 2, minAmt: 30, maxAmt: 55, descs: ["Gas fill-up", "Fuel", "Gas + car wash"] },
+  { merchantIdx: 3, minAmt: 12, maxAmt: 200, descs: ["Household items", "Electronics", "Books", "Kitchen supplies", "Clothing"] },
+  { merchantIdx: 4, minAmt: 15, maxAmt: 23, descs: ["Monthly subscription"] },
+  { merchantIdx: 5, minAmt: 10, maxAmt: 17, descs: ["Monthly subscription"] },
+  { merchantIdx: 6, minAmt: 9, maxAmt: 16, descs: ["Burrito bowl", "Burrito bowl + guac", "Bowl + chips", "Tacos"] },
+  { merchantIdx: 7, minAmt: 15, maxAmt: 90, descs: ["Clothing", "Home goods", "Household essentials", "Decor"] },
+  { merchantIdx: 8, minAmt: 8, maxAmt: 45, descs: ["Prescriptions", "OTC medicine", "Vitamins", "First aid supplies"] },
+  { merchantIdx: 9, minAmt: 20, maxAmt: 35, descs: ["Monthly membership", "Gym membership"] },
+  { merchantIdx: 10, minAmt: 8, maxAmt: 35, descs: ["Ride to campus", "Ride downtown", "Ride to airport", "Ride to grocery"] },
   { merchantIdx: 11, minAmt: 60, maxAmt: 110, descs: ["Internet bill", "Internet + cable bundle"] },
-  { merchantIdx: 12, minAmt: 25, maxAmt: 80,  descs: ["Groceries", "Snacks run", "Weekly haul"] },
-  { merchantIdx: 13, minAmt: 5,  maxAmt: 15,  descs: ["Lunch combo", "Breakfast sandwich", "McFlurry + fries", "Big Mac meal"] },
-  { merchantIdx: 14, minAmt: 10, maxAmt: 30,  descs: ["Language course", "Study materials", "Merch"] },
+  { merchantIdx: 12, minAmt: 25, maxAmt: 80, descs: ["Groceries", "Snacks run", "Weekly haul"] },
+  { merchantIdx: 13, minAmt: 5, maxAmt: 15, descs: ["Lunch combo", "Breakfast sandwich", "McFlurry + fries", "Big Mac meal"] },
+  { merchantIdx: 14, minAmt: 10, maxAmt: 30, descs: ["Language course", "Study materials", "Merch"] },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -210,8 +210,10 @@ export async function seedNessieData(apiKey: string): Promise<SeedResult> {
   // 1. Create merchants (shared across all users)
   const merchantIds: string[] = [];
   for (const merchant of MERCHANTS) {
+    // API is rejecting 'category', so we omit it for now
+    const { category, ...merchantPayload } = merchant;
     const result = await nessiePost<{ objectCreated: { _id: string } }>(
-      "/merchants", merchant, apiKey
+      "/merchants", merchantPayload, apiKey
     );
     merchantIds.push(result.objectCreated._id);
   }

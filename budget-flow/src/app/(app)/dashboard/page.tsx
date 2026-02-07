@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import SankeyDiagram from "@/components/SankeyDiagram";
+import CategoryCard from "@/components/CategoryCard";
 import { buildSankeyData } from "@/lib/mock-data";
 import { useBudgetData } from "@/lib/use-budget-data";
 import {
@@ -13,10 +15,14 @@ import {
   ArrowDownRight,
   Loader2,
   Database,
+  Lightbulb,
+  AlertTriangle,
+  Target,
+  CalendarDays,
 } from "lucide-react";
 
 export default function DashboardPage() {
-  const { categories, income, isLoading, isUsingMockData } = useBudgetData();
+  const { categories, income, isLoading, isUsingMockData, updateCategory, updateSubcategory } = useBudgetData();
 
   const sankeyData = useMemo(
     () => (categories.length > 0 ? buildSankeyData(income, categories) : null),
@@ -109,9 +115,8 @@ export default function DashboardPage() {
                   <Icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
                 <div
-                  className={`flex items-center gap-1 text-xs font-medium ${
-                    stat.trendUp ? "text-accent-green" : "text-accent-red"
-                  }`}
+                  className={`flex items-center gap-1 text-xs font-medium ${stat.trendUp ? "text-accent-green" : "text-accent-red"
+                    }`}
                 >
                   {stat.trendUp ? (
                     <ArrowUpRight className="w-3 h-3" />
@@ -160,54 +165,92 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Category Breakdown */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-        {categories.map((cat) => (
-          <div
-            key={cat.name}
-            className="bg-bg-card border border-border-main rounded-xl p-5 hover:bg-bg-card-hover transition-colors"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: cat.color }}
-                />
-                <h3 className="font-medium text-text-primary">{cat.name}</h3>
-              </div>
-              <span className="text-lg font-bold text-text-primary">
-                ${cat.amount.toLocaleString()}
-              </span>
+      {/* Quick Insights */}
+      <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Top Spending Category */}
+        <div className="bg-bg-card border border-border-main rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="bg-accent-yellow/10 p-2 rounded-lg">
+              <AlertTriangle className="w-4 h-4 text-accent-yellow" />
             </div>
-            <div className="space-y-2">
-              {cat.subcategories.map((sub) => (
-                <div
-                  key={sub.name}
-                  className="flex items-center justify-between"
-                >
-                  <span className="text-sm text-text-secondary">
-                    {sub.name}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 bg-bg-primary rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${(sub.amount / cat.amount) * 100}%`,
-                          backgroundColor: cat.color,
-                          opacity: 0.7,
-                        }}
-                      />
-                    </div>
-                    <span className="text-xs text-text-secondary w-12 text-right">
-                      ${sub.amount}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <span className="text-sm font-medium text-text-secondary">Top Spending</span>
           </div>
-        ))}
+          {categories.length > 0 && (
+            <>
+              <p className="text-xl font-bold text-text-primary">
+                {categories.reduce((max, cat) => cat.amount > max.amount ? cat : max, categories[0]).name}
+              </p>
+              <p className="text-sm text-text-secondary mt-1">
+                ${categories.reduce((max, cat) => cat.amount > max.amount ? cat : max, categories[0]).amount.toLocaleString()} this month
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Daily Budget */}
+        <div className="bg-bg-card border border-border-main rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="bg-accent-green/10 p-2 rounded-lg">
+              <Target className="w-4 h-4 text-accent-green" />
+            </div>
+            <span className="text-sm font-medium text-text-secondary">Daily Budget</span>
+          </div>
+          <p className="text-xl font-bold text-accent-green">
+            ${((income - totalSpending) / 30).toFixed(2)}
+          </p>
+          <p className="text-sm text-text-secondary mt-1">
+            Available per day to stay on track
+          </p>
+        </div>
+
+        {/* Planner CTA */}
+        <Link 
+          href="/planner"
+          className="bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 border border-accent-purple/30 rounded-xl p-5 hover:from-accent-purple/30 hover:to-accent-blue/30 transition-all"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <div className="bg-accent-purple/20 p-2 rounded-lg">
+              <CalendarDays className="w-4 h-4 text-accent-purple" />
+            </div>
+            <span className="text-sm font-medium text-accent-purple">Plan Ahead</span>
+          </div>
+          <p className="text-lg font-bold text-text-primary">Budget Planner</p>
+          <p className="text-sm text-text-secondary mt-1">
+            View spending heatmap & plan future expenses
+          </p>
+        </Link>
+      </div>
+
+      {/* AI Insight */}
+      <div className="mt-4 bg-gradient-to-r from-accent-blue/10 to-accent-teal/10 border border-accent-blue/20 rounded-xl p-5">
+        <div className="flex items-start gap-3">
+          <div className="bg-accent-blue/20 p-2 rounded-lg">
+            <Lightbulb className="w-5 h-5 text-accent-blue" />
+          </div>
+          <div>
+            <h3 className="font-medium text-text-primary mb-1">AI Insight</h3>
+            <p className="text-sm text-text-secondary">
+              {Number(savingsRate) >= 20 
+                ? `Great job! You're saving ${savingsRate}% of your income. Consider investing the extra $${Math.max(0, (income - totalSpending) - (income * 0.2)).toFixed(0)} in an index fund for long-term growth.`
+                : `Your savings rate is ${savingsRate}%. To hit the recommended 20%, try reducing your top spending category by $${((income * 0.2) - (income - totalSpending)).toFixed(0)}/month.`
+              }
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Category Breakdown */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-text-primary mb-4">Edit Categories</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.map((cat) => (
+            <CategoryCard
+              key={cat.name}
+              category={cat}
+              onUpdateSubcategory={(subName, amount) => updateSubcategory(cat.name, subName, amount)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -12,6 +12,9 @@ import {
   MarkerType,
   Handle,
   Position,
+  useNodesState,
+  useEdgesState,
+  NodeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -20,6 +23,7 @@ import {
   Lightbulb,
   AlertTriangle,
   TrendingUp,
+  X,
 } from "lucide-react";
 
 interface StrategyNodeData {
@@ -27,6 +31,7 @@ interface StrategyNodeData {
   description: string;
   amount?: number;
   nodeType: "income" | "goal" | "strategy" | "suggestion" | "warning";
+  [key: string]: unknown;
 }
 
 const nodeTypeConfig = {
@@ -36,6 +41,7 @@ const nodeTypeConfig = {
     border: "border-accent-green/40",
     iconColor: "text-accent-green",
     accent: "#10b981",
+    label: "Income",
   },
   goal: {
     icon: Target,
@@ -43,6 +49,7 @@ const nodeTypeConfig = {
     border: "border-accent-blue/40",
     iconColor: "text-accent-blue",
     accent: "#6366f1",
+    label: "Goal",
   },
   strategy: {
     icon: TrendingUp,
@@ -50,6 +57,7 @@ const nodeTypeConfig = {
     border: "border-accent-purple/40",
     iconColor: "text-accent-purple",
     accent: "#8b5cf6",
+    label: "Strategy",
   },
   suggestion: {
     icon: Lightbulb,
@@ -57,6 +65,7 @@ const nodeTypeConfig = {
     border: "border-accent-yellow/40",
     iconColor: "text-accent-yellow",
     accent: "#f59e0b",
+    label: "Suggestion",
   },
   warning: {
     icon: AlertTriangle,
@@ -64,6 +73,7 @@ const nodeTypeConfig = {
     border: "border-accent-red/40",
     iconColor: "text-accent-red",
     accent: "#ef4444",
+    label: "Warning",
   },
 };
 
@@ -73,34 +83,29 @@ function StrategyNode({ data }: { data: StrategyNodeData }) {
 
   return (
     <div
-      className={`${config.bg} ${config.border} border-2 rounded-xl p-4 min-w-[220px] max-w-[280px] shadow-lg backdrop-blur-sm`}
+      className={`${config.bg} ${config.border} border-2 rounded-xl p-3 min-w-[180px] max-w-[220px] shadow-lg backdrop-blur-sm cursor-pointer hover:scale-[1.02] transition-transform`}
     >
       <Handle
         type="target"
         position={Position.Left}
         className="!bg-border-main !w-3 !h-3 !border-2 !border-bg-card"
       />
-      <div className="flex items-start gap-3">
-        <div
-          className={`${config.bg} rounded-lg p-2 flex-shrink-0`}
-        >
-          <Icon className={`w-5 h-5 ${config.iconColor}`} />
+      <div className="flex items-center gap-2.5">
+        <div className={`${config.bg} rounded-lg p-1.5 flex-shrink-0`}>
+          <Icon className={`w-4 h-4 ${config.iconColor}`} />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-text-primary text-sm leading-tight">
+          <h3 className="font-semibold text-text-primary text-sm leading-tight truncate">
             {data.label}
           </h3>
-          <p className="text-text-secondary text-xs mt-1 leading-relaxed">
-            {data.description}
-          </p>
           {data.amount !== undefined && (
-            <div
-              className={`mt-2 text-sm font-bold ${
+            <span
+              className={`text-xs font-bold ${
                 data.amount >= 0 ? config.iconColor : "text-accent-red"
               }`}
             >
               {data.amount >= 0 ? "+" : ""}${Math.abs(data.amount).toLocaleString()}/mo
-            </div>
+            </span>
           )}
         </div>
       </div>
@@ -116,6 +121,75 @@ function StrategyNode({ data }: { data: StrategyNodeData }) {
 const nodeTypes = {
   strategy: StrategyNode,
 };
+
+// ─── Detail Card ─────────────────────────────────────────────────────────────
+
+interface DetailCardProps {
+  data: StrategyNodeData;
+  onClose: () => void;
+}
+
+function DetailCard({ data, onClose }: DetailCardProps) {
+  const config = nodeTypeConfig[data.nodeType];
+  const Icon = config.icon;
+
+  return (
+    <div className="absolute top-4 right-4 z-50 w-80 animate-in fade-in slide-in-from-right-4 duration-200">
+      <div
+        className={`${config.bg} border-2 ${config.border} rounded-2xl p-5 shadow-2xl backdrop-blur-md`}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`${config.bg} rounded-xl p-2.5`}>
+              <Icon className={`w-6 h-6 ${config.iconColor}`} />
+            </div>
+            <div>
+              <span
+                className={`text-xs font-semibold uppercase tracking-wider ${config.iconColor}`}
+              >
+                {config.label}
+              </span>
+              <h3 className="text-lg font-bold text-text-primary leading-tight">
+                {data.label}
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-text-secondary hover:text-text-primary transition-colors p-1 rounded-lg hover:bg-bg-card/50"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <p className="text-sm text-text-secondary leading-relaxed mb-4">
+          {data.description}
+        </p>
+
+        {data.amount !== undefined && (
+          <div
+            className={`flex items-center justify-between rounded-xl p-3 ${
+              data.amount >= 0
+                ? "bg-accent-green/10 border border-accent-green/20"
+                : "bg-accent-red/10 border border-accent-red/20"
+            }`}
+          >
+            <span className="text-sm text-text-secondary">Monthly Impact</span>
+            <span
+              className={`text-xl font-bold ${
+                data.amount >= 0 ? "text-accent-green" : "text-accent-red"
+              }`}
+            >
+              {data.amount >= 0 ? "+" : "-"}${Math.abs(data.amount).toLocaleString()}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 interface Props {
   strategyNodes: {
@@ -136,8 +210,9 @@ export default function StrategyGraphComponent({
   strategyNodes,
   strategyEdges,
 }: Props) {
-  const nodes: Node[] = useMemo(() => {
-    // Layout nodes in columns by type
+  const [selectedNode, setSelectedNode] = useState<StrategyNodeData | null>(null);
+
+  const initialNodes: Node[] = useMemo(() => {
     const columns: Record<string, number> = {
       income: 0,
       goal: 1,
@@ -155,7 +230,8 @@ export default function StrategyGraphComponent({
       return {
         id: node.id,
         type: "strategy",
-        position: { x: col * 350 + 50, y: count * 200 + 50 },
+        position: { x: col * 350 + 50, y: count * 180 + 50 },
+        draggable: true,
         data: {
           label: node.label,
           description: node.description,
@@ -166,7 +242,7 @@ export default function StrategyGraphComponent({
     });
   }, [strategyNodes]);
 
-  const edges: Edge[] = useMemo(
+  const initialEdges: Edge[] = useMemo(
     () =>
       strategyEdges.map((edge, i) => ({
         id: `e-${i}`,
@@ -188,20 +264,33 @@ export default function StrategyGraphComponent({
     [strategyEdges]
   );
 
-  const onInit = useCallback(() => {}, []);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
+
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+    setSelectedNode(node.data as unknown as StrategyNodeData);
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
 
   return (
-    <div className="w-full h-[600px] rounded-xl overflow-hidden border border-border-main">
+    <div className="w-full h-full rounded-xl overflow-hidden border border-border-main relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
-        onInit={onInit}
         connectionMode={ConnectionMode.Loose}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         minZoom={0.3}
-        maxZoom={1.5}
+        maxZoom={2}
+        nodesDraggable={true}
         proOptions={{ hideAttribution: true }}
       >
         <Background color="#2a2d3a" gap={20} size={1} />
@@ -217,6 +306,13 @@ export default function StrategyGraphComponent({
           maskColor="rgba(10, 11, 16, 0.8)"
         />
       </ReactFlow>
+
+      {selectedNode && (
+        <DetailCard
+          data={selectedNode}
+          onClose={() => setSelectedNode(null)}
+        />
+      )}
     </div>
   );
 }
