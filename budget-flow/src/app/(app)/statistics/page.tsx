@@ -33,6 +33,7 @@ import {
   ChevronUp,
   Sparkles,
   X,
+  Brain,
 } from "lucide-react";
 
 const RADIAN = Math.PI / 180;
@@ -84,6 +85,8 @@ export default function StatisticsPage() {
   const [aiPreloaded, setAiPreloaded] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(true);
+  const [aiBudgetPlan, setAiBudgetPlan] = useState<{ name: string; budgeted: number }[]>([]);
+  const [aiBudgetLoading, setAiBudgetLoading] = useState(true);
 
   // Collapsible states
   const [showRecurring, setShowRecurring] = useState(false);
@@ -121,6 +124,34 @@ export default function StatisticsPage() {
     }
   }, [isLoading, aiPreloaded, income, transactions]);
 
+  // Fetch AI budget flow
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    setAiBudgetLoading(true);
+    fetch(`/api/budget-flow?userId=${user.id}&month=${month}&year=${year}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.nodes) {
+          const categoryNodes = data.nodes.filter((n: any) => n.type === "category");
+          const plan = categoryNodes.map((n: any) => ({
+            name: n.name,
+            budgeted: parseFloat(n.amount),
+          }));
+          setAiBudgetPlan(plan);
+        }
+        setAiBudgetLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch AI budget flow:", err);
+        setAiBudgetLoading(false);
+      });
+  }, [user?.id]);
+
   // Fetch user budgets
   useEffect(() => {
     if (!user?.id) return;
@@ -144,6 +175,27 @@ export default function StatisticsPage() {
     budgeted: b.budgeted
   })) : [];
 
+  // AI Budget vs Actual derived values
+  const aiBudgetVsActualSankey =
+    categories.length > 0 && aiBudgetPlan.length > 0
+      ? buildBudgetVsActualSankeyData(aiBudgetPlan, categories)
+      : null;
+
+  const aiBudgetVariance = aiBudgetPlan.map((plan) => {
+    const actual = categories.find((c) => c.name.toLowerCase() === plan.name.toLowerCase());
+    const actualAmount = actual ? actual.amount : 0;
+    return {
+      name: plan.name,
+      budgeted: plan.budgeted,
+      actual: actualAmount,
+      diff: actualAmount - plan.budgeted,
+    };
+  });
+
+  const aiTotalBudgeted = aiBudgetPlan.reduce((s, p) => s + p.budgeted, 0);
+  const aiTotalOverBudget = aiBudgetVariance.filter((v) => v.diff > 0).reduce((s, v) => s + v.diff, 0);
+  const aiTotalUnderBudget = aiBudgetVariance.filter((v) => v.diff < 0).reduce((s, v) => s + Math.abs(v.diff), 0);
+
   // Avoid hook-order issues by keeping these as plain derived values.
   const budgetVsActualSankey =
     categories.length > 0 && budgetPlan.length > 0
@@ -161,7 +213,7 @@ export default function StatisticsPage() {
     };
   });
 
-  if (isLoading || budgetsLoading || transactionsLoading) {
+  if (isLoading || budgetsLoading || transactionsLoading || aiBudgetLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
@@ -530,6 +582,86 @@ export default function StatisticsPage() {
           onToggle={() => setShowDayToDay(!showDayToDay)}
         />
       </div>
+
+      {/* AI Budget vs Actual Sankey */}
+      {aiBudgetVsActualSankey && (
+        <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-8 relative overflow-hidden">
+          {/* Purple accent border */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-purple to-accent-pink" />
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-gradient-to-br from-accent-purple to-accent-pink p-2 rounded-lg">
+                <Brain className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold text-text-primary">
+                    AI Budget vs Actual Spending
+                  </h2>
+                  <span className="text-xs bg-accent-purple/20 text-accent-purple px-2 py-0.5 rounded-full font-medium">
+                    AI Recommended
+                  </span>
+                </div>
+                <p className="text-sm text-text-secondary">
+                  Compare your AI-recommended budget allocations against actual spending
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-accent-green" />
+                <span className="text-text-secondary">Under Budget</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full bg-accent-red" />
+                <span className="text-text-secondary">Over Budget</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Summary stats row */}
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="bg-bg-primary/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">AI Recommended Total</p>
+              <p className="text-lg font-bold text-text-primary">${aiTotalBudgeted.toLocaleString()}</p>
+            </div>
+            <div className="bg-accent-green/5 border border-accent-green/20 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Under Budget (Saved)</p>
+              <p className="text-lg font-bold text-accent-green">${aiTotalUnderBudget.toLocaleString()}</p>
+            </div>
+            <div className="bg-accent-red/5 border border-accent-red/20 rounded-lg p-3 text-center">
+              <p className="text-xs text-text-secondary">Over Budget</p>
+              <p className="text-lg font-bold text-accent-red">${aiTotalOverBudget.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <SankeyDiagram data={aiBudgetVsActualSankey} />
+
+          {/* Per-category variance chips */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            {aiBudgetVariance.map((v) => (
+              <div
+                key={v.name}
+                className={`rounded-lg p-2 text-center text-xs ${v.diff > 0
+                  ? "bg-accent-red/10 border border-accent-red/20"
+                  : v.diff < 0
+                    ? "bg-accent-green/10 border border-accent-green/20"
+                    : "bg-bg-primary/50 border border-border-main"
+                  }`}
+              >
+                <p className="text-text-secondary truncate">{v.name}</p>
+                <p
+                  className={`font-bold ${v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
+                    }`}
+                >
+                  {v.diff > 0 ? "+" : ""}${v.diff.toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Budget vs Actual Sankey */}
       {budgetVsActualSankey && (
