@@ -32,15 +32,15 @@ tartanhacks/
 | I want to...                          | Look here                                      |
 |---------------------------------------|-------------------------------------------------|
 | Change the sidebar / navigation       | `src/components/Sidebar.tsx`                    |
-| Edit the dashboard page               | `src/app/dashboard/page.tsx`                    |
-| Edit the statistics/analytics page    | `src/app/statistics/page.tsx`                   |
-| Edit the strategy page                | `src/app/strategy/page.tsx`                     |
+| Edit the dashboard page               | `src/app/(app)/dashboard/page.tsx`              |
+| Edit the statistics/analytics page    | `src/app/(app)/statistics/page.tsx`             |
+| Edit the strategy page                | `src/app/(app)/strategy/page.tsx`               |
 | Change the Sankey (money flow) diagram| `src/components/SankeyDiagram.tsx`              |
 | Change the strategy workflow graph    | `src/components/StrategyGraph.tsx`              |
 | Modify colors, theme, or dark mode    | `src/app/globals.css`                           |
 | Change the app layout / wrapper       | `src/app/layout.tsx`                            |
 | Update TypeScript types               | `src/lib/types.ts`                              |
-| Edit mock/demo data                   | `src/lib/mock-data.ts`                          |
+| Edit mock data                        | `src/lib/mock-data.ts`                          |
 | Modify banking API calls              | `src/lib/nessie.ts` + `src/app/api/nessie/route.ts` |
 | Modify AI API calls                   | `src/lib/dedalus.ts` + `src/app/api/ai/route.ts`    |
 | Change API keys or env vars           | `.env.local`                                    |
@@ -52,19 +52,19 @@ tartanhacks/
 
 All pages live in `src/app/`. Each folder is a route.
 
-### Dashboard (`src/app/dashboard/page.tsx`)
+### Dashboard (`src/app/(app)/dashboard/page.tsx`)
 - **Route:** `/dashboard` (also the home page via redirect in `src/app/page.tsx`)
 - **What it shows:** Income, spending, net savings stat cards + a Sankey diagram + category breakdown cards
 - **Data source:** `mock-data.ts` (categories, income, sankey builder)
 - **Key component:** `SankeyDiagram` from `src/components/SankeyDiagram.tsx`
 
-### Statistics (`src/app/statistics/page.tsx`)
+### Statistics (`src/app/(app)/statistics/page.tsx`)
 - **Route:** `/statistics`
 - **What it shows:** Spending trend area chart, category donut chart, top merchants bar chart, merchant details table
 - **Data source:** `mock-data.ts` (monthly spending, merchants)
 - **Charts library:** Recharts (`recharts` package)
 
-### Strategy (`src/app/strategy/page.tsx`)
+### Strategy (`src/app/(app)/strategy/page.tsx`)
 - **Route:** `/strategy`
 - **What it shows:** Summary cards, savings banner, interactive strategy workflow graph, action items list
 - **Data source:** `mock-data.ts` (strategy nodes and edges)
@@ -130,8 +130,8 @@ Key types:
 - `MerchantSpending` - Merchant spending breakdowns
 - `NessieCustomer`, `NessieAccount`, `NessiePurchase`, `NessieMerchant` - Banking API shapes
 
-### `mock-data.ts` - Demo Data
-All the hardcoded data used for development and demo. This is where you change numbers, categories, merchants, strategy nodes, etc. When you hook up real API data, you'll replace calls to this file with actual API responses.
+### `mock-data.ts` - Mock Data
+All the hardcoded data used for development. This is where you change numbers, categories, merchants, strategy nodes, etc. When you hook up real API data, you'll replace calls to this file with actual API responses.
 
 Key exports:
 - `mockCategories` - 7 spending categories with subcategories

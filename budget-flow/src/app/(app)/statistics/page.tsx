@@ -24,7 +24,6 @@ import {
   Calendar,
   CreditCard,
   Loader2,
-  Database,
   GitCompareArrows,
 } from "lucide-react";
 
@@ -53,14 +52,29 @@ function CustomPieLabel(props: any) {
   );
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) {
+// Recharts tooltip payload shape varies by chart type. Keep this liberal and style-driven.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
+
+  const title =
+    (typeof label === "string" && label) ||
+    // PieChart tooltips don't provide a label the same way axis charts do.
+    (payload?.[0]?.name as string | undefined) ||
+    (payload?.[0]?.payload?.name as string | undefined) ||
+    "";
+
   return (
     <div className="bg-bg-card border border-border-main rounded-lg p-3 shadow-xl">
-      <p className="text-text-primary font-medium mb-1">{label}</p>
-      {payload.map((item, i) => (
-        <p key={i} className="text-sm" style={{ color: item.color }}>
-          {item.name}: ${item.value.toLocaleString()}
+      <p className="text-text-primary font-medium mb-1">{title}</p>
+      {payload.map((item: any, i: number) => (
+        <p
+          key={i}
+          className="text-sm"
+          style={{ color: item.color || item.payload?.color || "#f0f0f5" }}
+        >
+          {(item.name || item.payload?.name) ?? "Value"}: $
+          {Number(item.value ?? 0).toLocaleString()}
         </p>
       ))}
     </div>
@@ -68,7 +82,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function StatisticsPage() {
-  const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData();
+  const { categories, income, monthlySpending, merchants, isLoading } = useBudgetData();
 
   // Avoid hook-order issues by keeping these as plain derived values.
   const budgetVsActualSankey =
@@ -137,12 +151,6 @@ export default function StatisticsPage() {
             Detailed analytics of your purchasing patterns and trends
           </p>
         </div>
-        {isUsingMockData && (
-          <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-main rounded-full px-3 py-1.5">
-            <Database className="w-3 h-3" />
-            Demo Data
-          </div>
-        )}
       </div>
 
       {/* Quick Stats */}
@@ -336,16 +344,7 @@ export default function StatisticsPage() {
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Pie>
-              <Tooltip
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                formatter={(value: any) => `$${Number(value).toLocaleString()}`}
-                contentStyle={{
-                  background: "#1a1c25",
-                  border: "1px solid #2a2d3a",
-                  borderRadius: "8px",
-                  color: "#f0f0f5",
-                }}
-              />
+              <Tooltip content={<CustomTooltip />} />
             </PieChart>
           </ResponsiveContainer>
         </div>
