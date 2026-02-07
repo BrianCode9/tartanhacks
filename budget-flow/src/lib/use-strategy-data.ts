@@ -17,6 +17,51 @@ interface StrategyInput {
   isReady: boolean;
 }
 
+const STRATEGY_CACHE_KEY = "strategy-ai-cache";
+
+interface CachedStrategy {
+  categoriesKey: string;
+  income: number;
+  nodes: StrategyNode[];
+  edges: StrategyEdge[];
+  timestamp: number;
+}
+
+// Cache expires after 1 hour
+const CACHE_TTL = 60 * 60 * 1000;
+
+function loadStrategyCache(): CachedStrategy | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const cached = localStorage.getItem(STRATEGY_CACHE_KEY);
+    if (!cached) return null;
+    const parsed = JSON.parse(cached);
+    // Check if cache is still valid
+    if (Date.now() - parsed.timestamp > CACHE_TTL) {
+      localStorage.removeItem(STRATEGY_CACHE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveStrategyCache(categoriesKey: string, income: number, nodes: StrategyNode[], edges: StrategyEdge[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STRATEGY_CACHE_KEY, JSON.stringify({
+      categoriesKey,
+      income,
+      nodes,
+      edges,
+      timestamp: Date.now(),
+    }));
+  } catch {
+    // Silent fail
+  }
+}
+
 export function useStrategyData({ categories, income, isReady }: StrategyInput): StrategyData {
   const [data, setData] = useState<StrategyData>({
     nodes: [],
@@ -26,11 +71,13 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
   });
   const hasFetched = useRef(false);
 
-  // Stabilize categories into a string key so the effect doesn't re-fire on reference changes
+  // Stabilize categories into a string key
   const categoriesKey = useMemo(
     () => JSON.stringify(categories.map((c) => ({ n: c.name, a: c.amount }))),
     [categories]
   );
+
+  const incomeKey = JSON.stringify(income);
 
   useEffect(() => {
     if (!isReady || hasFetched.current) return;
@@ -39,6 +86,20 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
     hasFetched.current = true;
 
     async function fetchStrategy() {
+      // Check cache first
+      const cached = loadStrategyCache();
+      if (cached && cached.categoriesKey === categoriesKey && cached.income === income) {
+        if (!cancelled) {
+          setData({
+            nodes: cached.nodes,
+            edges: cached.edges,
+            isLoading: false,
+            isUsingMockData: false,
+          });
+        }
+        return;
+      }
+
       try {
         const totalSpending = categories.reduce((sum, c) => sum + c.amount, 0);
 
@@ -53,9 +114,9 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
               `- ${c.name}: $${c.amount} (${((c.amount / totalSpending) * 100).toFixed(1)}%)` +
               (c.subcategories.length > 0
                 ? "\n" +
-                  c.subcategories
-                    .map((s) => `  - ${s.name}: $${s.amount}`)
-                    .join("\n")
+                c.subcategories
+                  .map((s) => `  - ${s.name}: $${s.amount}`)
+                  .join("\n")
                 : "")
           ),
         ].join("\n");
@@ -74,7 +135,7 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
         const result = await res.json();
         const content = result.response;
 
-        // Parse JSON from the response (may be wrapped in markdown code blocks)
+        // Parse JSON from the response
         let jsonStr = content;
         const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (codeBlockMatch) {
@@ -88,6 +149,8 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
         }
 
         if (!cancelled) {
+          // Save to cache
+          saveStrategyCache(categoriesKey, income, parsed.nodes, parsed.edges);
           setData({
             nodes: parsed.nodes,
             edges: parsed.edges,
@@ -113,8 +176,8 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoriesKey, income, isReady]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesKey, incomeKey, isReady]);
 
   return data;
 }

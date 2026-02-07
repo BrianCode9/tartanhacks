@@ -58,7 +58,7 @@ function EditableAmount({
                     value={tempAmount}
                     onChange={(e) => setTempAmount(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    className="w-20 px-1 py-0.5 text-right bg-bg-main border border-border-main rounded text-text-primary text-sm focus:outline-none focus:border-accent-blue"
+                    className="w-[7ch] px-1 py-0.5 text-right bg-bg-main border border-border-main rounded text-text-primary text-sm focus:outline-none focus:border-accent-blue"
                 />
                 <button onClick={handleSave} className="p-0.5 hover:bg-accent-green/20 rounded text-accent-green">
                     <Check className="w-3 h-3" />
@@ -106,9 +106,11 @@ export default function CategoryCard({ category, onUpdateSubcategory }: Category
             <div className="space-y-2">
                 {category.subcategories.map((sub) => (
                     <div key={sub.name} className="flex items-center justify-between">
-                        <span className="text-sm text-text-secondary">{sub.name}</span>
-                        <div className="flex items-center gap-2">
-                            <div className="w-24 h-1.5 bg-bg-main rounded-full overflow-hidden">
+                        <span className="text-sm text-text-secondary w-32 shrink-0">{sub.name}</span>
+
+                        {/* Center the bar in the card, keep the amount aligned right */}
+                        <div className="flex-1 flex justify-start pl-1 pr-2">
+                            <div className="w-28 h-1.5 bg-bg-main rounded-full overflow-hidden">
                                 <div
                                     className="h-full rounded-full transition-all duration-500"
                                     style={{
@@ -118,13 +120,14 @@ export default function CategoryCard({ category, onUpdateSubcategory }: Category
                                     }}
                                 />
                             </div>
-                            <div className="w-16 flex justify-end">
-                                <EditableAmount
-                                    amount={sub.amount}
-                                    onSave={(val) => onUpdateSubcategory(sub.name, val)}
-                                    className="text-xs text-text-secondary"
-                                />
-                            </div>
+                        </div>
+
+                        <div className="w-20 flex justify-end">
+                            <EditableAmount
+                                amount={sub.amount}
+                                onSave={(val) => onUpdateSubcategory(sub.name, val)}
+                                className="text-xs text-text-secondary"
+                            />
                         </div>
                     </div>
                 ))}

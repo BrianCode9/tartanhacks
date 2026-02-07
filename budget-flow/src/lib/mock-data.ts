@@ -77,14 +77,50 @@ export const mockCategories: SpendingCategory[] = [
 export const mockIncome = 5000;
 
 export function buildSankeyData(income: number, categories: SpendingCategory[]): BudgetSankeyData {
-  const nodes: { name: string }[] = [{ name: "Income" }];
+  // The Sankey layout is driven by link values, so we explicitly include income
+  // as a source, route spending through an "Expenses" hub, and show either
+  // "Unallocated" (income > spending) or "Debt / Shortfall" (spending > income).
+  const nodes: { name: string }[] = [];
   const links: { source: number; target: number; value: number }[] = [];
+
+  const totalSpending = categories.reduce((sum, cat) => sum + cat.amount, 0);
+
+  const incomeIndex = nodes.length;
+  nodes.push({ name: "Income" });
+
+  const expensesIndex = nodes.length;
+  nodes.push({ name: "Expenses" });
+
+  // Income funds expenses up to the smaller of the two.
+  links.push({
+    source: incomeIndex,
+    target: expensesIndex,
+    value: Math.max(0, Math.min(income, totalSpending)),
+  });
+
+  if (income > totalSpending) {
+    const unallocatedIndex = nodes.length;
+    nodes.push({ name: "Unallocated" });
+    links.push({
+      source: incomeIndex,
+      target: unallocatedIndex,
+      value: income - totalSpending,
+    });
+  } else if (totalSpending > income) {
+    const shortfallIndex = nodes.length;
+    nodes.push({ name: "Debt / Shortfall" });
+    links.push({
+      source: shortfallIndex,
+      target: expensesIndex,
+      value: totalSpending - income,
+    });
+  }
 
   // Add category nodes
   categories.forEach((cat) => {
     const catIndex = nodes.length;
     nodes.push({ name: cat.name });
-    links.push({ source: 0, target: catIndex, value: cat.amount });
+    links.push({ source: expensesIndex, target: catIndex, value: cat.amount });
 
     // Add subcategory nodes
     cat.subcategories.forEach((sub) => {
