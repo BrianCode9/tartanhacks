@@ -4,8 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import SankeyDiagram from "@/components/SankeyDiagram";
 import CategoryCard from "@/components/CategoryCard";
-import { buildSankeyData } from "@/lib/mock-data";
+import { BudgetSankeyData } from "@/lib/types";
 import { useBudgetData } from "@/lib/use-budget-data";
+import { useUser } from "@/lib/user-context";
 import {
   TrendingDown,
   Wallet,
@@ -161,12 +162,15 @@ function EditableIncome({
 }
 
 export default function DashboardPage() {
+  const { user } = useUser();
   const { categories, income, isLoading, updateIncome, addCategory, removeCategory, updateCategoryColor, updateSubcategory } = useBudgetData();
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryAmount, setNewCategoryAmount] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState<string>("");
   const [addCategoryError, setAddCategoryError] = useState<string | null>(null);
+  const [sankeyData, setSankeyData] = useState<BudgetSankeyData | null>(null);
+  const [isFetchingFlow, setIsFetchingFlow] = useState(true);
 
   useEffect(() => {
     if (!showAddCategory) {
@@ -181,10 +185,46 @@ export default function DashboardPage() {
     }
   }, [showAddCategory, categories]);
 
-  const sankeyData = useMemo(
-    () => (categories.length > 0 ? buildSankeyData(income, categories) : null),
-    [income, categories]
-  );
+  // Fetch budget flow from database
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    setIsFetchingFlow(true);
+    fetch(`/api/budget-flow?userId=${user.id}&month=${month}&year=${year}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.nodes && data.links) {
+          // Transform database format to Sankey format
+          const nodes = data.nodes.map((node: any) => ({
+            id: node.id,
+            label: node.name,
+            value: parseFloat(node.amount),
+            color: node.color,
+          }));
+
+          const links = data.links.map((link: any) => ({
+            source: link.source.id,
+            target: link.target.id,
+            value: parseFloat(link.amount),
+          }));
+
+          setSankeyData({ nodes, links });
+        } else {
+          setSankeyData(null);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch budget flow:', err);
+        setSankeyData(null);
+      })
+      .finally(() => {
+        setIsFetchingFlow(false);
+      });
+  }, [user?.id]);
 
   const totalSpending = categories.reduce((sum, cat) => sum + cat.amount, 0);
   // Net savings = what's left after allocations. Can be negative (shortfall).
@@ -316,9 +356,29 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Blank State */}
+      {!sankeyData && !isFetchingFlow && (
+        <div className="bg-bg-card border border-border-main rounded-xl p-12 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-16 h-16 bg-accent-blue/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CalendarDays className="w-8 h-8 text-accent-blue" />
+            </div>
+            <h3 className="text-xl font-semibold text-text-primary mb-2">
+              No Budget Flow Found
+            </h3>
+            <p className="text-text-secondary mb-6">
+              Create a customizable budget flow diagram to visualize how your income is allocated across different spending categories for this month.
+            </p>
+            <p className="text-sm text-text-muted">
+              Budget flow editing features coming soon! You can still track your spending using categories below.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mt-6 flex justify-end">
         <Link
-          href="/planner"
+          href="/history"
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 border border-accent-purple/30 hover:from-accent-purple/30 hover:to-accent-blue/30 transition-all text-text-primary"
         >
           <CalendarDays className="w-4 h-4 text-accent-purple" />
