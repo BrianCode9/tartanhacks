@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/lib/user-context";
 
 // Pre-computed mosaic tiles - varying sizes and opacities for artistic effect
 const MOSAIC_TILES = [
@@ -124,10 +125,10 @@ function MosaicBackground() {
 // Login Modal Component
 function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => void; mode: "login" | "signup" }) {
   const router = useRouter();
+  const { setUser } = useUser();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [accountID, setAccountID] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -139,7 +140,7 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
     try {
       const endpoint = mode === "signup" ? "/api/auth/register" : "/api/auth/login";
       const body = mode === "signup"
-        ? { name, email, password, accountID }
+        ? { name, email, password }
         : { email, password };
 
       const response = await fetch(endpoint, {
@@ -154,6 +155,16 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
         setError(data.message || "Authentication failed");
         setLoading(false);
         return;
+      }
+
+      // Save user to context
+      if (data.user) {
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          monthlyIncome: data.user.monthlyIncome,
+        });
       }
 
       // Success - redirect to dashboard
@@ -229,20 +240,6 @@ function AuthModal({ isOpen, onClose, mode }: { isOpen: boolean; onClose: () => 
               placeholder="you@example.com"
             />
           </div>
-          {mode === "signup" && (
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Account ID</label>
-              <input
-                type="text"
-                value={accountID}
-                onChange={(e) => setAccountID(e.target.value)}
-                required
-                disabled={loading}
-                className="w-full px-4 py-3 bg-bg-secondary border border-border-main rounded-lg text-text-primary placeholder-text-secondary focus:outline-none focus:border-accent-purple transition-colors disabled:opacity-50"
-                placeholder="Your Nessie account ID"
-              />
-            </div>
-          )}
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-2">Password</label>
             <input
@@ -441,12 +438,6 @@ export default function LandingPage() {
               className="px-8 py-4 bg-gradient-to-r from-accent-purple to-accent-blue text-white rounded-xl font-semibold text-lg hover:opacity-90 transition-all hover:scale-105 shadow-lg shadow-accent-purple/25"
             >
               Start Building Your Mosaic
-            </button>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="px-8 py-4 bg-bg-card border border-border-main text-text-primary rounded-xl font-semibold text-lg hover:bg-bg-card-hover transition-all hover:scale-105"
-            >
-              View Demo
             </button>
           </div>
         </div>

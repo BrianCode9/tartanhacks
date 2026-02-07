@@ -3,22 +3,23 @@ export interface User {
     id: string;
     name: string;
     email: string;
-    password: string;
-    accountID: string;
+    passwordHash: string;
+    monthlyIncome?: number;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 export interface UserSession {
     id: string;
     name: string;
     email: string;
-    accountID: string;
+    monthlyIncome?: number;
 }
 
 export interface RegisterRequest {
     name: string;
     email: string;
     password: string;
-    accountID: string;
 }
 
 export interface LoginRequest {

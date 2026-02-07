@@ -1,0 +1,141 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  name          String
+  passwordHash  String   @map("password_hash")
+  monthlyIncome Decimal  @default(5000) @map("monthly_income") @db.Decimal(10, 2)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  accounts    Account[]
+  sessions    Session[]
+  budgets     Budget[]
+  budgetFlows BudgetFlow[]
+
+  @@map("users")
+}
+
+model Account {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  type      String
+  nickname  String
+  balance   Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@map("accounts")
+}
+
+model Merchant {
+  id          String  @id @default(uuid())
+  name        String
+  category    String
+  subcategory String?
+
+  transactions Transaction[]
+
+  @@map("merchants")
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  accountId       String   @map("account_id")
+  merchantId      String   @map("merchant_id")
+  amount          Decimal  @db.Decimal(10, 2)
+  description     String?
+  transactionDate DateTime @map("transaction_date")
+  status          String   @default("completed")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  account  Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Budget {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  category  String
+  budgeted  Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@map("budgets")
+}
+
+model BudgetFlow {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month     Int // 1-12
+  year      Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  nodes BudgetFlowNode[]
+  links BudgetFlowLink[]
+
+  @@unique([userId, month, year])
+  @@map("budget_flows")
+}
+
+model BudgetFlowNode {
+  id           String     @id @default(uuid())
+  budgetFlowId String     @map("budget_flow_id")
+  budgetFlow   BudgetFlow @relation(fields: [budgetFlowId], references: [id], onDelete: Cascade)
+  name         String // e.g., "Income", "Housing", "Food"
+  type         String // "source" or "target"
+  amount       Decimal    @db.Decimal(10, 2)
+  color        String? // Optional color for visualization
+  order        Int        @default(0) // Display order
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  linksFrom BudgetFlowLink[] @relation("SourceNode")
+  linksTo   BudgetFlowLink[] @relation("TargetNode")
+
+  @@map("budget_flow_nodes")
+}
+
+model BudgetFlowLink {
+  id           String         @id @default(uuid())
+  budgetFlowId String         @map("budget_flow_id")
+  budgetFlow   BudgetFlow     @relation(fields: [budgetFlowId], references: [id], onDelete: Cascade)
+  sourceId     String         @map("source_id")
+  source       BudgetFlowNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  targetId     String         @map("target_id")
+  target       BudgetFlowNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+  amount       Decimal        @db.Decimal(10, 2)
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@map("budget_flow_links")
+}

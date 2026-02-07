@@ -1,98 +1,106 @@
+import prisma from "./prisma";
+import { hashPassword, verifyPassword } from "./auth";
 import { User, UserSession } from "./auth-types";
-import fs from "fs";
-import path from "path";
-import { randomUUID } from "crypto";
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
+/**
+ * Find a user by email
+ */
+export async function findUserByEmail(email: string): Promise<User | null> {
+    const user = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+    });
 
-// Ensure data directory exists
-function ensureDataDir() {
-    if (!fs.existsSync(DATA_DIR)) {
-        fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
+    return user as any as User | null;
 }
 
-// Read all users from the database
-export function readUsers(): User[] {
-    ensureDataDir();
+/**
+ * Find a user by ID
+ */
+export async function findUserById(id: string): Promise<User | null> {
+    const user = await prisma.user.findUnique({
+        where: { id },
+    });
 
-    if (!fs.existsSync(USERS_FILE)) {
-        return [];
-    }
-
-    try {
-        const data = fs.readFileSync(USERS_FILE, "utf-8");
-        return JSON.parse(data);
-    } catch (error) {
-        console.error("Error reading users file:", error);
-        return [];
-    }
+    return user as any as User | null;
 }
 
-// Write users to the database
-function writeUsers(users: User[]): void {
-    ensureDataDir();
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
-}
-
-// Find a user by email
-export function findUserByEmail(email: string): User | null {
-    const users = readUsers();
-    return users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
-}
-
-// Find a user by ID
-export function findUserById(id: string): User | null {
-    const users = readUsers();
-    return users.find((u) => u.id === id) || null;
-}
-
-// Create a new user
-export function createUser(name: string, email: string, password: string, accountID: string): User {
-    const users = readUsers();
-
-    // Check if email already exists
-    if (findUserByEmail(email)) {
+/**
+ * Create a new user with hashed password
+ */
+export async function createUser(
+    name: string,
+    email: string,
+    password: string
+): Promise<User> {
+    // Check if user already exists
+    const existing = await findUserByEmail(email);
+    if (existing) {
         throw new Error("User with this email already exists");
     }
 
-    const newUser: User = {
-        id: randomUUID(),
-        name,
-        email,
-        password, // Plain text as requested
-        accountID, // Use provided Nessie account ID
-    };
+    // Hash password
+    const passwordHash = await hashPassword(password);
 
-    users.push(newUser);
-    writeUsers(users);
+    // Create user and default checking account in a transaction
+    const user = await prisma.user.create({
+        data: {
+            name,
+            email: email.toLowerCase(),
+            passwordHash,
+            accounts: {
+                create: {
+                    type: "Checking",
+                    nickname: "Main Checking",
+                    balance: 5000, // Starting balance
+                },
+            },
+        },
+    });
 
-    return newUser;
+    return user as any as User;
 }
 
-// Validate user credentials
-export function validateCredentials(email: string, password: string): User | null {
-    const user = findUserByEmail(email);
+/**
+ * Validate user credentials
+ */
+export async function validateCredentials(
+    email: string,
+    password: string
+): Promise<User | null> {
+    const user = await prisma.user.findUnique({
+        where: { email: email.toLowerCase() },
+        select: {
+            id: true,
+            email: true,
+            name: true,
+            passwordHash: true,
+            monthlyIncome: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
 
     if (!user) {
         return null;
     }
 
-    // Direct password comparison (no hashing)
-    if (user.password === password) {
-        return user;
+    const isValid = await verifyPassword(password, user.passwordHash);
+
+    if (!isValid) {
+        return null;
     }
 
-    return null;
+    return user as any as User;
 }
 
-// Convert User to UserSession (exclude password)
+/**
+ * Convert User to UserSession (exclude passwordHash)
+ */
 export function toUserSession(user: User): UserSession {
     return {
         id: user.id,
         name: user.name,
         email: user.email,
-        accountID: user.accountID,
+        monthlyIncome: user.monthlyIncome ? Number(user.monthlyIncome) : undefined,
     };
 }

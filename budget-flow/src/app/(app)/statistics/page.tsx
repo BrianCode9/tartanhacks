@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -16,8 +17,10 @@ import {
   Area,
 } from "recharts";
 import { useBudgetData } from "@/lib/use-budget-data";
-import { buildBudgetVsActualSankeyData, mockBudgetPlan } from "@/lib/mock-data";
+import { useUser } from "@/lib/user-context";
+import { buildBudgetVsActualSankeyData, mockBudgetPlan, mockTransactions } from "@/lib/mock-data";
 import SankeyDiagram from "@/components/SankeyDiagram";
+import AIInsights, { preloadAIInsights } from "@/components/AIInsights";
 import {
   TrendingUp,
   ShoppingCart,
@@ -26,6 +29,10 @@ import {
   Loader2,
   Database,
   GitCompareArrows,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  X,
 } from "lucide-react";
 
 const RADIAN = Math.PI / 180;
@@ -68,15 +75,58 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function StatisticsPage() {
-  const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData();
+  const { user } = useUser();
+  const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData(user?.id);
+  const [budgets, setBudgets] = useState<{ id: string; category: string; budgeted: number }[]>([]);
+  const [budgetsLoading, setBudgetsLoading] = useState(true);
+  const [showAllTransactions, setShowAllTransactions] = useState(false);
+  const [showAISidebar, setShowAISidebar] = useState(false);
+  const [aiPreloaded, setAiPreloaded] = useState(false);
+
+  // Preload AI insights in background when page loads
+  useEffect(() => {
+    if (!aiPreloaded && !isLoading) {
+      setAiPreloaded(true);
+      const recurringExpenses = mockTransactions.filter(t => t.isRecurring);
+      preloadAIInsights(
+        mockTransactions.map(t => ({ merchant: t.merchant, amount: t.amount, category: t.category, date: t.date })),
+        recurringExpenses.map(e => ({ merchant: e.merchant, amount: e.amount, category: e.category })),
+        mockTransactions.reduce((sum, t) => sum + t.amount, 0),
+        income
+      );
+    }
+  }, [isLoading, aiPreloaded, income]);
+
+  // Fetch user budgets
+  useEffect(() => {
+    if (!user?.id) return;
+
+    setBudgetsLoading(true);
+    fetch(`/api/budgets?userId=${user.id}`)
+      .then(res => res.json())
+      .then(data => {
+        setBudgets(data);
+        setBudgetsLoading(false);
+      })
+      .catch(err => {
+        console.error('Failed to fetch budgets:', err);
+        setBudgetsLoading(false);
+      });
+  }, [user?.id]);
+
+  // Convert budgets to budget plan format
+  const budgetPlan = budgets.length > 0 ? budgets.map(b => ({
+    name: b.category,
+    budgeted: b.budgeted
+  })) : [];
 
   // Avoid hook-order issues by keeping these as plain derived values.
   const budgetVsActualSankey =
-    categories.length > 0
-      ? buildBudgetVsActualSankeyData(mockBudgetPlan, categories)
+    categories.length > 0 && budgetPlan.length > 0
+      ? buildBudgetVsActualSankeyData(budgetPlan, categories)
       : null;
 
-  const budgetVariance = mockBudgetPlan.map((plan) => {
+  const budgetVariance = budgetPlan.map((plan) => {
     const actual = categories.find((c) => c.name.toLowerCase() === plan.name.toLowerCase());
     const actualAmount = actual ? actual.amount : 0;
     return {
@@ -87,7 +137,7 @@ export default function StatisticsPage() {
     };
   });
 
-  if (isLoading) {
+  if (isLoading || budgetsLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
@@ -113,7 +163,7 @@ export default function StatisticsPage() {
     0
   );
 
-  const totalBudgeted = mockBudgetPlan.reduce((s, p) => s + p.budgeted, 0);
+  const totalBudgeted = budgetPlan.reduce((s, p) => s + p.budgeted, 0);
   const totalOverBudget = budgetVariance.filter((v) => v.diff > 0).reduce((s, v) => s + v.diff, 0);
   const totalUnderBudget = budgetVariance.filter((v) => v.diff < 0).reduce((s, v) => s + Math.abs(v.diff), 0);
 
@@ -124,6 +174,13 @@ export default function StatisticsPage() {
   }));
 
   const merchantBarData = sortedMerchants.slice(0, 8);
+
+  // Calculate recurring expenses (subscriptions/bills)
+  // In a real app, this would be determined by transaction patterns or user flags.
+  // Here we filter mock transactions by isRecurring flag.
+  // Note: we need to import mockTransactions first.
+  const recurringExpenses = mockTransactions.filter(t => t.isRecurring);
+  const totalRecurring = recurringExpenses.reduce((sum, t) => sum + t.amount, 0);
 
   return (
     <div className="p-8">
@@ -143,7 +200,59 @@ export default function StatisticsPage() {
             Demo Data
           </div>
         )}
+        <button
+          onClick={() => setShowAISidebar(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-accent-purple to-accent-pink text-white rounded-lg font-medium text-sm hover:opacity-90 transition-opacity shadow-lg"
+        >
+          <Sparkles className="w-4 h-4" />
+          AI Budget Insights
+        </button>
       </div>
+
+      {/* AI Sidebar */}
+      {showAISidebar && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50 z-40"
+            onClick={() => setShowAISidebar(false)}
+          />
+          {/* Sidebar */}
+          <div className="fixed right-0 top-0 h-full w-full max-w-md bg-bg-primary border-l border-border-main z-50 overflow-y-auto shadow-2xl">
+            <div className="sticky top-0 bg-bg-primary border-b border-border-main p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-br from-accent-purple to-accent-pink p-2 rounded-lg">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="font-semibold text-text-primary">AI Budget Insights</h2>
+              </div>
+              <button
+                onClick={() => setShowAISidebar(false)}
+                className="p-2 hover:bg-bg-secondary rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-text-secondary" />
+              </button>
+            </div>
+            <div className="p-4">
+              <AIInsights
+                transactions={mockTransactions.map(t => ({
+                  merchant: t.merchant,
+                  amount: t.amount,
+                  category: t.category,
+                  date: t.date,
+                }))}
+                recurringExpenses={recurringExpenses.map(e => ({
+                  merchant: e.merchant,
+                  amount: e.amount,
+                  category: e.category,
+                }))}
+                totalSpending={totalSpending}
+                income={income}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -200,6 +309,38 @@ export default function StatisticsPage() {
         })}
       </div>
 
+      {/* Recurring & Projections Row */}
+      <div className="mb-8">
+        {/* Recurring Expenses Card */}
+        <div className="bg-bg-card border border-border-main rounded-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-text-primary">Recurring Expenses</h2>
+            <span className="text-sm font-bold text-text-primary">${totalRecurring.toFixed(2)}/mo</span>
+          </div>
+          <div className="space-y-3">
+            {recurringExpenses.length > 0 ? (
+              recurringExpenses.map((expense) => (
+                <div key={expense.id} className="flex items-center justify-between p-3 bg-bg-secondary rounded-lg border border-border-main">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-accent-blue/20 flex items-center justify-center text-accent-blue">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{expense.merchant}</p>
+                      <p className="text-xs text-text-secondary">{expense.category}</p>
+                    </div>
+                  </div>
+                  <p className="font-semibold text-text-primary">${expense.amount.toFixed(2)}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-text-secondary">No recurring expenses found.</p>
+            )}
+          </div>
+        </div>
+
+      </div>
+
       {/* Budget vs Actual Sankey */}
       {budgetVsActualSankey && (
         <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-8">
@@ -252,19 +393,17 @@ export default function StatisticsPage() {
             {budgetVariance.map((v) => (
               <div
                 key={v.name}
-                className={`rounded-lg p-2 text-center text-xs ${
-                  v.diff > 0
-                    ? "bg-accent-red/10 border border-accent-red/20"
-                    : v.diff < 0
+                className={`rounded-lg p-2 text-center text-xs ${v.diff > 0
+                  ? "bg-accent-red/10 border border-accent-red/20"
+                  : v.diff < 0
                     ? "bg-accent-green/10 border border-accent-green/20"
                     : "bg-bg-primary/50 border border-border-main"
-                }`}
+                  }`}
               >
                 <p className="text-text-secondary truncate">{v.name}</p>
                 <p
-                  className={`font-bold ${
-                    v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
-                  }`}
+                  className={`font-bold ${v.diff > 0 ? "text-accent-red" : v.diff < 0 ? "text-accent-green" : "text-text-primary"
+                    }`}
                 >
                   {v.diff > 0 ? "+" : ""}${v.diff.toLocaleString()}
                 </p>
@@ -350,90 +489,146 @@ export default function StatisticsPage() {
           </ResponsiveContainer>
         </div>
       </div>
-
-      {/* Top Merchants Bar Chart */}
+      {/* Merchant Spending Overview - Combined Chart + Details */}
       <div className="bg-bg-card border border-border-main rounded-xl p-6 mb-8">
         <h2 className="text-lg font-semibold text-text-primary mb-4">
-          Top Merchants by Spending
+          Merchant Spending Overview
         </h2>
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={merchantBarData} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" horizontal={false} />
-            <XAxis
-              type="number"
-              stroke="#9ca3af"
-              fontSize={12}
-              tickFormatter={(v) => `$${v}`}
-            />
-            <YAxis
-              dataKey="name"
-              type="category"
-              stroke="#9ca3af"
-              fontSize={12}
-              width={100}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="amount" name="Amount" radius={[0, 6, 6, 0]}>
-              {merchantBarData.map((_, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={
-                    [
-                      "#6366f1",
-                      "#8b5cf6",
-                      "#ec4899",
-                      "#f59e0b",
-                      "#10b981",
-                      "#14b8a6",
-                      "#ef4444",
-                      "#6366f1",
-                    ][index]
-                  }
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Bar Chart */}
+          <div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={merchantBarData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2d3a" horizontal={false} />
+                <XAxis
+                  type="number"
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  tickFormatter={(v) => `$${v}`}
                 />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  stroke="#9ca3af"
+                  fontSize={12}
+                  width={100}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="amount" name="Amount" radius={[0, 6, 6, 0]}>
+                  {merchantBarData.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={
+                        [
+                          "#6366f1",
+                          "#8b5cf6",
+                          "#ec4899",
+                          "#f59e0b",
+                          "#10b981",
+                          "#14b8a6",
+                          "#ef4444",
+                          "#6366f1",
+                        ][index]
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          {/* Details Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-text-secondary border-b border-border-main">
+                  <th className="pb-2 font-medium">Merchant</th>
+                  <th className="pb-2 font-medium text-right">Visits</th>
+                  <th className="pb-2 font-medium text-right">Total</th>
+                  <th className="pb-2 font-medium text-right">Avg</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedMerchants.slice(0, 8).map((merchant) => (
+                  <tr
+                    key={merchant.name}
+                    className="border-b border-border-main/50"
+                  >
+                    <td className="py-2 font-medium text-text-primary">
+                      {merchant.name}
+                    </td>
+                    <td className="py-2 text-right text-text-secondary">
+                      {merchant.visits}
+                    </td>
+                    <td className="py-2 text-right font-medium text-text-primary">
+                      ${merchant.amount.toLocaleString()}
+                    </td>
+                    <td className="py-2 text-right text-text-secondary">
+                      ${(merchant.amount / merchant.visits).toFixed(0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      {/* Merchant Details Table */}
+      {/* Transactions - Collapsible */}
       <div className="bg-bg-card border border-border-main rounded-xl p-6">
-        <h2 className="text-lg font-semibold text-text-primary mb-4">
-          Merchant Details
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-text-primary">
+            Recent Transactions
+          </h2>
+          <button
+            onClick={() => setShowAllTransactions(!showAllTransactions)}
+            className="flex items-center gap-1 text-sm text-accent-blue hover:text-accent-blue/80 transition-colors"
+          >
+            {showAllTransactions ? (
+              <>
+                Show Less <ChevronUp className="w-4 h-4" />
+              </>
+            ) : (
+              <>
+                Show All ({mockTransactions.length}) <ChevronDown className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="text-left text-sm text-text-secondary border-b border-border-main">
+                <th className="pb-3 font-medium">Date</th>
                 <th className="pb-3 font-medium">Merchant</th>
                 <th className="pb-3 font-medium">Category</th>
-                <th className="pb-3 font-medium text-right">Visits</th>
-                <th className="pb-3 font-medium text-right">Total Spent</th>
-                <th className="pb-3 font-medium text-right">Avg per Visit</th>
+                <th className="pb-3 font-medium text-center">Status</th>
+                <th className="pb-3 font-medium text-right">Amount</th>
               </tr>
             </thead>
             <tbody>
-              {sortedMerchants.map((merchant) => (
+              {(showAllTransactions ? mockTransactions : mockTransactions.slice(0, 5)).map((tx) => (
                 <tr
-                  key={merchant.name}
+                  key={tx.id}
                   className="border-b border-border-main/50 hover:bg-bg-card-hover transition-colors"
                 >
+                  <td className="py-3 text-sm text-text-secondary">
+                    {new Date(tx.date).toLocaleDateString()}
+                  </td>
                   <td className="py-3 font-medium text-text-primary">
-                    {merchant.name}
+                    {tx.merchant}
                   </td>
                   <td className="py-3">
                     <span className="text-xs bg-bg-primary px-2 py-1 rounded-full text-text-secondary">
-                      {merchant.category}
+                      {tx.category}
                     </span>
                   </td>
-                  <td className="py-3 text-right text-text-secondary">
-                    {merchant.visits}
+                  <td className="py-3 text-center">
+                    <span className="text-xs text-accent-green bg-accent-green/10 px-2 py-1 rounded-full">
+                      {tx.status}
+                    </span>
                   </td>
                   <td className="py-3 text-right font-medium text-text-primary">
-                    ${merchant.amount.toLocaleString()}
-                  </td>
-                  <td className="py-3 text-right text-text-secondary">
-                    ${(merchant.amount / merchant.visits).toFixed(2)}
+                    ${tx.amount.toFixed(2)}
                   </td>
                 </tr>
               ))}
