@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   GitBranch,
@@ -30,9 +31,58 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
+interface UserData {
+  id: string;
+  name: string;
+  email: string;
+  accountID: string;
+}
+
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, toggleTheme, mounted } = useTheme();
+  const [user, setUser] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch user data
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const response = await fetch("/api/user");
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchUser();
+  }, []);
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  // Get user initials from name
+  const getUserInitials = (name: string): string => {
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
     <aside
@@ -119,15 +169,23 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="p-2 border-t border-border-main">
         <div className={`flex items-center gap-3 px-3 py-3 ${collapsed ? "justify-center" : ""}`}>
           <div className="w-8 h-8 rounded-full bg-accent-blue/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-accent-blue">B</span>
+            <span className="text-sm font-bold text-accent-blue">
+              {loading ? "..." : (user ? getUserInitials(user.name) : "?")}
+            </span>
           </div>
           {!collapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text-primary truncate">Demo User</p>
+                <p className="text-sm font-medium text-text-primary truncate">
+                  {loading ? "Loading..." : (user?.name || "Guest")}
+                </p>
                 <p className="text-xs text-text-secondary">Free Plan</p>
               </div>
-              <button className="text-text-secondary hover:text-accent-red transition-colors">
+              <button
+                onClick={handleLogout}
+                title="Logout"
+                className="text-text-secondary hover:text-accent-red transition-colors"
+              >
                 <LogOut className="w-4 h-4" />
               </button>
             </>

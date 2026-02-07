@@ -1,0 +1,16 @@
+[
+  {
+    "id": "2d75c894-fccf-493c-b317-132454033e10",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "testpass123",
+    "accountID": "6986bbcd95150878eaff0bb6"
+  },
+  {
+    "id": "410cfd3f-3f56-46a3-a91b-33e18c018968",
+    "name": "tester",
+    "email": "test@example.com",
+    "password": "test",
+    "accountID": "6986bbd095150878eaff0bc9"
+  }
+]

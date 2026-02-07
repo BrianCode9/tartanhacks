@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import SankeyDiagram from "@/components/SankeyDiagram";
 import CategoryCard from "@/components/CategoryCard";
@@ -19,10 +19,128 @@ import {
   AlertTriangle,
   Target,
   CalendarDays,
+  Check,
+  X,
+  Edit2,
 } from "lucide-react";
 
+function parseCurrencyLikeInput(value: string): number {
+  // Accept inputs like "5000", "$5,000", "5,000.25".
+  const cleaned = value.replace(/[^0-9.-]/g, "");
+  const parsed = Number.parseFloat(cleaned);
+  return Number.isFinite(parsed) ? parsed : Number.NaN;
+}
+
+function EditableIncome({
+  income,
+  onChangeIncome,
+}: {
+  income: number;
+  onChangeIncome: (val: number) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempIncome, setTempIncome] = useState<string>(String(income));
+  const initialIncomeRef = useRef<number>(income);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isEditing) setTempIncome(String(income));
+  }, [income, isEditing]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) inputRef.current.focus();
+  }, [isEditing]);
+
+  const commit = () => {
+    const parsed = parseCurrencyLikeInput(tempIncome);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      onChangeIncome(Math.round(parsed));
+      setIsEditing(false);
+      return;
+    }
+
+    // Invalid input: revert to the pre-edit value.
+    onChangeIncome(initialIncomeRef.current);
+    setTempIncome(String(initialIncomeRef.current));
+    setIsEditing(false);
+  };
+
+  const cancel = () => {
+    onChangeIncome(initialIncomeRef.current);
+    setTempIncome(String(initialIncomeRef.current));
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center gap-1">
+        <span>$</span>
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="decimal"
+          aria-label="Monthly Income"
+          value={tempIncome}
+          onChange={(e) => {
+            const next = e.target.value;
+            setTempIncome(next);
+
+            // Live update Sankey while typing (valid numbers only).
+            const parsed = parseCurrencyLikeInput(next);
+            if (Number.isFinite(parsed) && parsed >= 0) {
+              onChangeIncome(Math.round(parsed));
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              commit();
+              (e.currentTarget as HTMLInputElement).blur();
+            }
+            if (e.key === "Escape") {
+              e.preventDefault();
+              cancel();
+              (e.currentTarget as HTMLInputElement).blur();
+            }
+          }}
+          className="w-28 px-1 py-0.5 bg-bg-main border border-border-main rounded text-text-primary text-2xl font-bold focus:outline-none focus:border-accent-blue"
+        />
+        <button
+          onClick={commit}
+          className="p-0.5 hover:bg-accent-green/20 rounded text-accent-green"
+          aria-label="Save income"
+        >
+          <Check className="w-4 h-4" />
+        </button>
+        <button
+          onClick={cancel}
+          className="p-0.5 hover:bg-accent-red/20 rounded text-accent-red"
+          aria-label="Cancel income edit"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => {
+        initialIncomeRef.current = income;
+        setTempIncome(String(income));
+        setIsEditing(true);
+      }}
+      className="cursor-pointer hover:bg-bg-main px-1 py-0.5 rounded transition-colors group/edit inline-flex items-center gap-1"
+      title="Click to edit"
+    >
+      <span>${income.toLocaleString()}</span>
+      <Edit2 className="w-4 h-4 text-text-muted opacity-0 group-hover/edit:opacity-100 transition-opacity" />
+    </div>
+  );
+}
+
 export default function DashboardPage() {
-  const { categories, income, isLoading, isUsingMockData, updateCategory, updateSubcategory } = useBudgetData();
+  const { categories, income, isLoading, isUsingMockData, updateIncome, updateCategory, updateSubcategory } = useBudgetData();
 
   const sankeyData = useMemo(
     () => (categories.length > 0 ? buildSankeyData(income, categories) : null),
@@ -105,6 +223,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat) => {
           const Icon = stat.icon;
+          const isIncome = stat.label === "Monthly Income";
           return (
             <div
               key={stat.label}
@@ -126,9 +245,15 @@ export default function DashboardPage() {
                   {stat.trend}
                 </div>
               </div>
-              <p className="text-2xl font-bold text-text-primary">
-                {stat.value}
-              </p>
+              {isIncome ? (
+                <div className="text-2xl font-bold text-text-primary">
+                  <EditableIncome income={income} onChangeIncome={updateIncome} />
+                </div>
+              ) : (
+                <p className="text-2xl font-bold text-text-primary">
+                  {stat.value}
+                </p>
+              )}
               <p className="text-sm text-text-secondary mt-1">{stat.label}</p>
             </div>
           );
@@ -204,7 +329,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Planner CTA */}
-        <Link 
+        <Link
           href="/planner"
           className="bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 border border-accent-purple/30 rounded-xl p-5 hover:from-accent-purple/30 hover:to-accent-blue/30 transition-all"
         >
@@ -230,7 +355,7 @@ export default function DashboardPage() {
           <div>
             <h3 className="font-medium text-text-primary mb-1">AI Insight</h3>
             <p className="text-sm text-text-secondary">
-              {Number(savingsRate) >= 20 
+              {Number(savingsRate) >= 20
                 ? `Great job! You're saving ${savingsRate}% of your income. Consider investing the extra $${Math.max(0, (income - totalSpending) - (income * 0.2)).toFixed(0)} in an index fund for long-term growth.`
                 : `Your savings rate is ${savingsRate}%. To hit the recommended 20%, try reducing your top spending category by $${((income * 0.2) - (income - totalSpending)).toFixed(0)}/month.`
               }
