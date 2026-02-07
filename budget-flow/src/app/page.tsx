@@ -439,12 +439,6 @@ export default function LandingPage() {
             >
               Start Building Your Mosaic
             </button>
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="px-8 py-4 bg-bg-card border border-border-main text-text-primary rounded-xl font-semibold text-lg hover:bg-bg-card-hover transition-all hover:scale-105"
-            >
-              View Demo
-            </button>
           </div>
         </div>
 

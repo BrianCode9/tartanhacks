@@ -21,11 +21,11 @@ import { useTheme } from "./ThemeProvider";
 
 const navItems = [
   { href: "/dashboard", label: "Budget Flow", icon: LayoutDashboard },
-  { href: "/planner", label: "Planner", icon: CalendarDays },
+  { href: "/history", label: "History", icon: CalendarDays },
   { href: "/strategy", label: "Strategy", icon: GitBranch },
   { href: "/debt-payoff", label: "Debt Payoff", icon: Landmark },
   { href: "/statistics", label: "Statistics", icon: BarChart3 },
-  { href: "/investments", label: "Investments", icon: TrendingUp },
+  { href: "/investments", label: "Savings", icon: TrendingUp },
 ];
 
 interface SidebarProps {

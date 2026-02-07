@@ -378,7 +378,7 @@ export default function DashboardPage() {
 
       <div className="mt-6 flex justify-end">
         <Link
-          href="/planner"
+          href="/history"
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 border border-accent-purple/30 hover:from-accent-purple/30 hover:to-accent-blue/30 transition-all text-text-primary"
         >
           <CalendarDays className="w-4 h-4 text-accent-purple" />
