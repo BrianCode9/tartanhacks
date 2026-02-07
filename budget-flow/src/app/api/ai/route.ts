@@ -47,7 +47,7 @@ future purchasing recommendations, and money-saving suggestions. Return as JSON:
         Authorization: `Bearer ${DEDALUS_KEY}`,
       },
       body: JSON.stringify({
-        model: "claude-opus-4-6",
+        model: "anthropic/claude-sonnet-4-5",
         messages: [
           { role: "system", content: systemMessage },
           { role: "user", content: prompt },

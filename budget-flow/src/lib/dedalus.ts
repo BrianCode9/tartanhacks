@@ -6,7 +6,7 @@ interface AIMessage {
   content: string;
 }
 
-export async function queryAI(messages: AIMessage[], model = "claude-opus-4-6"): Promise<string> {
+export async function queryAI(messages: AIMessage[], model = "anthropic/claude-sonnet-4-5"): Promise<string> {
   const res = await fetch(`${DEDALUS_URL}/chat/completions`, {
     method: "POST",
     headers: {

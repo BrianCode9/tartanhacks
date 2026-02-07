@@ -1,8 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { mockStrategyNodes, mockStrategyEdges } from "@/lib/mock-data";
-import { Target, TrendingUp, Lightbulb, AlertTriangle } from "lucide-react";
+import { useBudgetData } from "@/lib/use-budget-data";
+import { useStrategyData } from "@/lib/use-strategy-data";
+import {
+  Target,
+  TrendingUp,
+  Lightbulb,
+  AlertTriangle,
+  Loader2,
+  Database,
+  Sparkles,
+} from "lucide-react";
 
 const StrategyGraph = dynamic(() => import("@/components/StrategyGraph"), {
   ssr: false,
@@ -14,52 +23,101 @@ const StrategyGraph = dynamic(() => import("@/components/StrategyGraph"), {
 });
 
 export default function StrategyPage() {
+  const budgetData = useBudgetData();
+  const strategyData = useStrategyData({
+    categories: budgetData.categories,
+    income: budgetData.income,
+    isReady: !budgetData.isLoading,
+  });
+
+  if (budgetData.isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-accent-blue animate-spin" />
+          <p className="text-text-secondary">Loading budget data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (strategyData.isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Sparkles className="w-8 h-8 text-accent-purple animate-pulse" />
+          <p className="text-text-secondary">
+            Generating AI-powered strategies...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { nodes, edges } = strategyData;
+
   const summaryItems = [
     {
       icon: Target,
       label: "Active Goals",
-      value: mockStrategyNodes.filter((n) => n.type === "goal").length,
+      value: nodes.filter((n) => n.type === "goal").length,
       color: "text-accent-blue",
       bg: "bg-accent-blue/10",
     },
     {
       icon: TrendingUp,
       label: "Strategies",
-      value: mockStrategyNodes.filter((n) => n.type === "strategy").length,
+      value: nodes.filter((n) => n.type === "strategy").length,
       color: "text-accent-purple",
       bg: "bg-accent-purple/10",
     },
     {
       icon: Lightbulb,
       label: "Suggestions",
-      value: mockStrategyNodes.filter((n) => n.type === "suggestion").length,
+      value: nodes.filter((n) => n.type === "suggestion").length,
       color: "text-accent-yellow",
       bg: "bg-accent-yellow/10",
     },
     {
       icon: AlertTriangle,
       label: "Warnings",
-      value: mockStrategyNodes.filter((n) => n.type === "warning").length,
+      value: nodes.filter((n) => n.type === "warning").length,
       color: "text-accent-red",
       bg: "bg-accent-red/10",
     },
   ];
 
-  const potentialSavings = mockStrategyNodes
+  const potentialSavings = nodes
     .filter((n) => n.type === "strategy" || n.type === "suggestion")
     .reduce((sum, n) => sum + (n.amount || 0), 0);
 
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary">
-          Budget Strategy
-        </h1>
-        <p className="text-text-secondary mt-1">
-          AI-generated workflow of budget goals, strategies, and money-saving
-          suggestions
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary">
+            Budget Strategy
+          </h1>
+          <p className="text-text-secondary mt-1">
+            AI-generated workflow of budget goals, strategies, and money-saving
+            suggestions
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {strategyData.isUsingMockData && (
+            <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-main rounded-full px-3 py-1.5">
+              <Database className="w-3 h-3" />
+              Demo Strategy
+            </div>
+          )}
+          {!strategyData.isUsingMockData && (
+            <div className="flex items-center gap-2 text-xs text-accent-purple bg-accent-purple/10 border border-accent-purple/20 rounded-full px-3 py-1.5">
+              <Sparkles className="w-3 h-3" />
+              AI Generated
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -86,20 +144,22 @@ export default function StrategyPage() {
       </div>
 
       {/* Potential Savings Banner */}
-      <div className="bg-accent-green/10 border border-accent-green/20 rounded-xl p-5 mb-8 flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-accent-green text-lg">
-            Potential Monthly Savings
-          </h3>
-          <p className="text-text-secondary text-sm mt-1">
-            By following the suggested strategies, you could save this much each
-            month
-          </p>
+      {potentialSavings > 0 && (
+        <div className="bg-accent-green/10 border border-accent-green/20 rounded-xl p-5 mb-8 flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-accent-green text-lg">
+              Potential Monthly Savings
+            </h3>
+            <p className="text-text-secondary text-sm mt-1">
+              By following the suggested strategies, you could save this much
+              each month
+            </p>
+          </div>
+          <div className="text-3xl font-bold text-accent-green">
+            +${potentialSavings.toLocaleString()}
+          </div>
         </div>
-        <div className="text-3xl font-bold text-accent-green">
-          +${potentialSavings.toLocaleString()}
-        </div>
-      </div>
+      )}
 
       {/* Strategy Graph */}
       <div className="mb-8">
@@ -122,10 +182,7 @@ export default function StrategyPage() {
             ))}
           </div>
         </div>
-        <StrategyGraph
-          strategyNodes={mockStrategyNodes}
-          strategyEdges={mockStrategyEdges}
-        />
+        <StrategyGraph strategyNodes={nodes} strategyEdges={edges} />
       </div>
 
       {/* Strategy Details List */}
@@ -134,7 +191,7 @@ export default function StrategyPage() {
           Action Items
         </h2>
         <div className="space-y-3">
-          {mockStrategyNodes
+          {nodes
             .filter((n) => n.type !== "income")
             .map((node) => {
               const typeColors: Record<string, string> = {
@@ -152,12 +209,12 @@ export default function StrategyPage() {
               return (
                 <div
                   key={node.id}
-                  className={`border rounded-lg p-4 ${typeColors[node.type]}`}
+                  className={`border rounded-lg p-4 ${typeColors[node.type] || ""}`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span
-                        className={`text-xs font-medium px-2 py-1 rounded-full ${typeBadge[node.type]}`}
+                        className={`text-xs font-medium px-2 py-1 rounded-full ${typeBadge[node.type] || ""}`}
                       >
                         {node.type}
                       </span>

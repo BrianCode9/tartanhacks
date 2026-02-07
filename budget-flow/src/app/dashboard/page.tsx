@@ -2,11 +2,8 @@
 
 import { useMemo } from "react";
 import SankeyDiagram from "@/components/SankeyDiagram";
-import {
-  mockCategories,
-  mockIncome,
-  buildSankeyData,
-} from "@/lib/mock-data";
+import { buildSankeyData } from "@/lib/mock-data";
+import { useBudgetData } from "@/lib/use-budget-data";
 import {
   TrendingUp,
   TrendingDown,
@@ -14,27 +11,37 @@ import {
   PiggyBank,
   ArrowUpRight,
   ArrowDownRight,
+  Loader2,
+  Database,
 } from "lucide-react";
 
 export default function DashboardPage() {
+  const { categories, income, isLoading, isUsingMockData } = useBudgetData();
+
   const sankeyData = useMemo(
-    () => buildSankeyData(mockIncome, mockCategories),
-    []
+    () => (categories.length > 0 ? buildSankeyData(income, categories) : null),
+    [income, categories]
   );
 
-  const totalSpending = mockCategories.reduce(
-    (sum, cat) => sum + cat.amount,
-    0
-  );
-  const savingsRate = (
-    ((mockIncome - totalSpending) / mockIncome) *
-    100
-  ).toFixed(1);
+  const totalSpending = categories.reduce((sum, cat) => sum + cat.amount, 0);
+  const savingsRate =
+    income > 0 ? (((income - totalSpending) / income) * 100).toFixed(1) : "0";
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-accent-blue animate-spin" />
+          <p className="text-text-secondary">Loading budget data...</p>
+        </div>
+      </div>
+    );
+  }
 
   const stats = [
     {
       label: "Monthly Income",
-      value: `$${mockIncome.toLocaleString()}`,
+      value: `$${income.toLocaleString()}`,
       icon: Wallet,
       trend: "+3.2%",
       trendUp: true,
@@ -52,7 +59,7 @@ export default function DashboardPage() {
     },
     {
       label: "Net Savings",
-      value: `$${(mockIncome - totalSpending).toLocaleString()}`,
+      value: `$${(income - totalSpending).toLocaleString()}`,
       icon: PiggyBank,
       trend: `${savingsRate}%`,
       trendUp: true,
@@ -73,11 +80,19 @@ export default function DashboardPage() {
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary">Budget Flow</h1>
-        <p className="text-text-secondary mt-1">
-          Your spending visualized as a workflow — powered by AI analysis
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary">Budget Flow</h1>
+          <p className="text-text-secondary mt-1">
+            Your spending visualized as a workflow — powered by AI analysis
+          </p>
+        </div>
+        {isUsingMockData && (
+          <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-main rounded-full px-3 py-1.5">
+            <Database className="w-3 h-3" />
+            Demo Data
+          </div>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -116,34 +131,38 @@ export default function DashboardPage() {
       </div>
 
       {/* Sankey Diagram */}
-      <div className="bg-bg-card border border-border-main rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-semibold text-text-primary">
-              Money Flow Diagram
-            </h2>
-            <p className="text-sm text-text-secondary mt-1">
-              How your income flows through spending categories
-            </p>
+      {sankeyData && (
+        <div className="bg-bg-card border border-border-main rounded-xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-xl font-semibold text-text-primary">
+                Money Flow Diagram
+              </h2>
+              <p className="text-sm text-text-secondary mt-1">
+                How your income flows through spending categories
+              </p>
+            </div>
+            <div className="flex gap-2">
+              {categories.slice(0, 5).map((cat) => (
+                <div key={cat.name} className="flex items-center gap-1.5">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: cat.color }}
+                  />
+                  <span className="text-xs text-text-secondary">
+                    {cat.name}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-2">
-            {mockCategories.slice(0, 5).map((cat) => (
-              <div key={cat.name} className="flex items-center gap-1.5">
-                <div
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: cat.color }}
-                />
-                <span className="text-xs text-text-secondary">{cat.name}</span>
-              </div>
-            ))}
-          </div>
+          <SankeyDiagram data={sankeyData} />
         </div>
-        <SankeyDiagram data={sankeyData} />
-      </div>
+      )}
 
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
-        {mockCategories.map((cat) => (
+        {categories.map((cat) => (
           <div
             key={cat.name}
             className="bg-bg-card border border-border-main rounded-xl p-5 hover:bg-bg-card-hover transition-colors"
@@ -162,8 +181,13 @@ export default function DashboardPage() {
             </div>
             <div className="space-y-2">
               {cat.subcategories.map((sub) => (
-                <div key={sub.name} className="flex items-center justify-between">
-                  <span className="text-sm text-text-secondary">{sub.name}</span>
+                <div
+                  key={sub.name}
+                  className="flex items-center justify-between"
+                >
+                  <span className="text-sm text-text-secondary">
+                    {sub.name}
+                  </span>
                   <div className="flex items-center gap-2">
                     <div className="w-24 h-1.5 bg-bg-primary rounded-full overflow-hidden">
                       <div

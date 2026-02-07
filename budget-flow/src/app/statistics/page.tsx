@@ -11,22 +11,18 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
   Line,
-  Area,
   AreaChart,
+  Area,
 } from "recharts";
-import {
-  mockCategories,
-  mockMonthlySpending,
-  mockMerchants,
-  mockIncome,
-} from "@/lib/mock-data";
+import { useBudgetData } from "@/lib/use-budget-data";
 import {
   TrendingUp,
   ShoppingCart,
   Calendar,
   CreditCard,
+  Loader2,
+  Database,
 } from "lucide-react";
 
 const RADIAN = Math.PI / 180;
@@ -69,39 +65,60 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function StatisticsPage() {
-  const totalSpending = mockCategories.reduce(
+  const { categories, income, monthlySpending, merchants, isLoading, isUsingMockData } = useBudgetData();
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-accent-blue animate-spin" />
+          <p className="text-text-secondary">Loading statistics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const totalSpending = categories.reduce(
     (sum, cat) => sum + cat.amount,
     0
   );
   const avgMonthly =
-    mockMonthlySpending.reduce((sum, m) => sum + m.amount, 0) /
-    mockMonthlySpending.length;
-  const topMerchant = mockMerchants.sort((a, b) => b.amount - a.amount)[0];
-  const totalTransactions = mockMerchants.reduce(
+    monthlySpending.length > 0
+      ? monthlySpending.reduce((sum, m) => sum + m.amount, 0) / monthlySpending.length
+      : totalSpending;
+  const sortedMerchants = [...merchants].sort((a, b) => b.amount - a.amount);
+  const topMerchant = sortedMerchants[0];
+  const totalTransactions = merchants.reduce(
     (sum, m) => sum + m.visits,
     0
   );
 
-  const pieData = mockCategories.map((cat) => ({
+  const pieData = categories.map((cat) => ({
     name: cat.name,
     value: cat.amount,
     color: cat.color,
   }));
 
-  const merchantBarData = mockMerchants
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 8);
+  const merchantBarData = sortedMerchants.slice(0, 8);
 
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary">
-          Spending Statistics
-        </h1>
-        <p className="text-text-secondary mt-1">
-          Detailed analytics of your purchasing patterns and trends
-        </p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary">
+            Spending Statistics
+          </h1>
+          <p className="text-text-secondary mt-1">
+            Detailed analytics of your purchasing patterns and trends
+          </p>
+        </div>
+        {isUsingMockData && (
+          <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-main rounded-full px-3 py-1.5">
+            <Database className="w-3 h-3" />
+            Demo Data
+          </div>
+        )}
       </div>
 
       {/* Quick Stats */}
@@ -119,7 +136,7 @@ export default function StatisticsPage() {
             icon: TrendingUp,
             label: "Monthly Average",
             value: `$${avgMonthly.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
-            sub: "Last 6 months",
+            sub: monthlySpending.length > 0 ? `Last ${monthlySpending.length} months` : "This month",
             color: "text-accent-blue",
             bg: "bg-accent-blue/10",
           },
@@ -134,8 +151,8 @@ export default function StatisticsPage() {
           {
             icon: Calendar,
             label: "Top Merchant",
-            value: topMerchant.name,
-            sub: `$${topMerchant.amount} spent`,
+            value: topMerchant ? topMerchant.name : "N/A",
+            sub: topMerchant ? `$${topMerchant.amount} spent` : "",
             color: "text-accent-yellow",
             bg: "bg-accent-yellow/10",
           },
@@ -167,7 +184,7 @@ export default function StatisticsPage() {
             Monthly Spending Trend
           </h2>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={mockMonthlySpending}>
+            <AreaChart data={monthlySpending}>
               <defs>
                 <linearGradient id="spendingGradient" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
@@ -188,7 +205,7 @@ export default function StatisticsPage() {
               />
               <Line
                 type="monotone"
-                dataKey={() => mockIncome}
+                dataKey={() => income}
                 stroke="#10b981"
                 strokeDasharray="5 5"
                 strokeWidth={1}
@@ -298,32 +315,30 @@ export default function StatisticsPage() {
               </tr>
             </thead>
             <tbody>
-              {mockMerchants
-                .sort((a, b) => b.amount - a.amount)
-                .map((merchant) => (
-                  <tr
-                    key={merchant.name}
-                    className="border-b border-border-main/50 hover:bg-bg-card-hover transition-colors"
-                  >
-                    <td className="py-3 font-medium text-text-primary">
-                      {merchant.name}
-                    </td>
-                    <td className="py-3">
-                      <span className="text-xs bg-bg-primary px-2 py-1 rounded-full text-text-secondary">
-                        {merchant.category}
-                      </span>
-                    </td>
-                    <td className="py-3 text-right text-text-secondary">
-                      {merchant.visits}
-                    </td>
-                    <td className="py-3 text-right font-medium text-text-primary">
-                      ${merchant.amount.toLocaleString()}
-                    </td>
-                    <td className="py-3 text-right text-text-secondary">
-                      ${(merchant.amount / merchant.visits).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
+              {sortedMerchants.map((merchant) => (
+                <tr
+                  key={merchant.name}
+                  className="border-b border-border-main/50 hover:bg-bg-card-hover transition-colors"
+                >
+                  <td className="py-3 font-medium text-text-primary">
+                    {merchant.name}
+                  </td>
+                  <td className="py-3">
+                    <span className="text-xs bg-bg-primary px-2 py-1 rounded-full text-text-secondary">
+                      {merchant.category}
+                    </span>
+                  </td>
+                  <td className="py-3 text-right text-text-secondary">
+                    {merchant.visits}
+                  </td>
+                  <td className="py-3 text-right font-medium text-text-primary">
+                    ${merchant.amount.toLocaleString()}
+                  </td>
+                  <td className="py-3 text-right text-text-secondary">
+                    ${(merchant.amount / merchant.visits).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
