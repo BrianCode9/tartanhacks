@@ -111,13 +111,13 @@ export default function InvestmentsPage() {
 
     // Calculate monthly surplus
     const monthlySurplus = useMemo(() => {
-        const totalExpenses = categories.reduce((sum, cat) => sum + cat.budgeted, 0);
+        const totalExpenses = categories.reduce((sum, cat) => sum + cat.amount, 0);
         return income - totalExpenses;
     }, [income, categories]);
 
     const hasSurplus = monthlySurplus > 0;
     const emergencyFundTarget = useMemo(() => {
-        const monthlyExpenses = categories.reduce((sum, cat) => sum + cat.budgeted, 0);
+        const monthlyExpenses = categories.reduce((sum, cat) => sum + cat.amount, 0);
         return monthlyExpenses * 6; // 6 months of expenses
     }, [categories]);
 
