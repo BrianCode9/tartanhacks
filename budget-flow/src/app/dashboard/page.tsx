@@ -109,9 +109,8 @@ export default function DashboardPage() {
                   <Icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
                 <div
-                  className={`flex items-center gap-1 text-xs font-medium ${
-                    stat.trendUp ? "text-accent-green" : "text-accent-red"
-                  }`}
+                  className={`flex items-center gap-1 text-xs font-medium ${stat.trendUp ? "text-accent-green" : "text-accent-red"
+                    }`}
                 >
                   {stat.trendUp ? (
                     <ArrowUpRight className="w-3 h-3" />
@@ -159,6 +158,8 @@ export default function DashboardPage() {
           <SankeyDiagram data={sankeyData} />
         </div>
       )}
+
+
 
       {/* Category Breakdown */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
