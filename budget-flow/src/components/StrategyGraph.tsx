@@ -191,7 +191,7 @@ export default function StrategyGraphComponent({
   const onInit = useCallback(() => {}, []);
 
   return (
-    <div className="w-full h-full min-h-[600px] rounded-xl overflow-hidden border border-border-main">
+    <div className="w-full h-[600px] rounded-xl overflow-hidden border border-border-main">
       <ReactFlow
         nodes={nodes}
         edges={edges}

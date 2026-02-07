@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { mockStrategyNodes, mockStrategyEdges } from "@/lib/mock-data";
 import { useBudgetData } from "@/lib/use-budget-data";
 import { useStrategyData } from "@/lib/use-strategy-data";
 import {
@@ -30,6 +31,19 @@ export default function StrategyPage() {
     isReady: !budgetData.isLoading,
   });
 
+  // Use AI data when available, otherwise mock
+  const nodes = strategyData.isLoading
+    ? mockStrategyNodes
+    : strategyData.nodes.length > 0
+      ? strategyData.nodes
+      : mockStrategyNodes;
+  const edges = strategyData.isLoading
+    ? mockStrategyEdges
+    : strategyData.edges.length > 0
+      ? strategyData.edges
+      : mockStrategyEdges;
+  const showAiBadge = !strategyData.isLoading && !strategyData.isUsingMockData && strategyData.nodes.length > 0;
+
   if (budgetData.isLoading) {
     return (
       <div className="p-8 flex items-center justify-center min-h-screen">
@@ -40,21 +54,6 @@ export default function StrategyPage() {
       </div>
     );
   }
-
-  if (strategyData.isLoading) {
-    return (
-      <div className="p-8 flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <Sparkles className="w-8 h-8 text-accent-purple animate-pulse" />
-          <p className="text-text-secondary">
-            Generating AI-powered strategies...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const { nodes, edges } = strategyData;
 
   const summaryItems = [
     {
@@ -105,16 +104,22 @@ export default function StrategyPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {strategyData.isUsingMockData && (
-            <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-main rounded-full px-3 py-1.5">
-              <Database className="w-3 h-3" />
-              Demo Strategy
+          {strategyData.isLoading && (
+            <div className="flex items-center gap-2 text-xs text-accent-purple bg-accent-purple/10 border border-accent-purple/20 rounded-full px-3 py-1.5">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              Generating AI strategies...
             </div>
           )}
-          {!strategyData.isUsingMockData && (
+          {!strategyData.isLoading && showAiBadge && (
             <div className="flex items-center gap-2 text-xs text-accent-purple bg-accent-purple/10 border border-accent-purple/20 rounded-full px-3 py-1.5">
               <Sparkles className="w-3 h-3" />
               AI Generated
+            </div>
+          )}
+          {!strategyData.isLoading && !showAiBadge && (
+            <div className="flex items-center gap-2 text-xs text-text-secondary bg-bg-card border border-border-main rounded-full px-3 py-1.5">
+              <Database className="w-3 h-3" />
+              Demo Strategy
             </div>
           )}
         </div>
@@ -151,8 +156,8 @@ export default function StrategyPage() {
               Potential Monthly Savings
             </h3>
             <p className="text-text-secondary text-sm mt-1">
-              By following the suggested strategies, you could save this much
-              each month
+              By following the suggested strategies, you could save this much each
+              month
             </p>
           </div>
           <div className="text-3xl font-bold text-accent-green">
@@ -182,7 +187,9 @@ export default function StrategyPage() {
             ))}
           </div>
         </div>
-        <StrategyGraph strategyNodes={nodes} strategyEdges={edges} />
+        <div className="h-[600px]">
+          <StrategyGraph strategyNodes={nodes} strategyEdges={edges} />
+        </div>
       </div>
 
       {/* Strategy Details List */}

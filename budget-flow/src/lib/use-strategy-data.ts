@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { SpendingCategory, StrategyNode, StrategyEdge } from "./types";
 import { mockStrategyNodes, mockStrategyEdges } from "./mock-data";
 
@@ -24,11 +24,19 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
     isLoading: true,
     isUsingMockData: false,
   });
+  const hasFetched = useRef(false);
+
+  // Stabilize categories into a string key so the effect doesn't re-fire on reference changes
+  const categoriesKey = useMemo(
+    () => JSON.stringify(categories.map((c) => ({ n: c.name, a: c.amount }))),
+    [categories]
+  );
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || hasFetched.current) return;
 
     let cancelled = false;
+    hasFetched.current = true;
 
     async function fetchStrategy() {
       try {
@@ -105,7 +113,8 @@ export function useStrategyData({ categories, income, isReady }: StrategyInput):
     return () => {
       cancelled = true;
     };
-  }, [categories, income, isReady]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesKey, income, isReady]);
 
   return data;
 }
