@@ -6,6 +6,7 @@ import { sankey, sankeyLinkHorizontal, sankeyCenter, SankeyNode, SankeyLink } fr
 
 interface SankeyNodeExtra {
   name: string;
+  color?: string;
 }
 
 interface SankeyData {
@@ -13,11 +14,11 @@ interface SankeyData {
   links: { source: number; target: number; value: number }[];
 }
 
-// Use D3's category10 scheme to match Nivo's default
+// Fallback color scheme (used when nodes don't provide explicit colors).
 const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
-function getNodeColor(name: string): string {
-  return colorScale(name);
+function getNodeColor(node: SankeyNodeExtra): string {
+  return node.color || colorScale(node.name);
 }
 
 export default function SankeyDiagram({ data }: { data: SankeyData }) {
@@ -115,6 +116,8 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
       }
     });
 
+    const textColor = getComputedStyle(document.documentElement).getPropertyValue("--text-primary").trim() || "#f0f0f5";
+
     const linkPath = sankeyLinkHorizontal<SankeyNodeExtra, object>();
 
     const links = svg
@@ -129,7 +132,7 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
         "stroke",
         (d: SankeyLink<SankeyNodeExtra, object>) => {
           const sourceNode = d.source as SankeyNode<SankeyNodeExtra, object>;
-          return getNodeColor(sourceNode.name);
+          return getNodeColor(sourceNode as unknown as SankeyNodeExtra);
         }
       )
       .attr("stroke-width", (d: SankeyLink<SankeyNodeExtra, object>) =>
@@ -244,7 +247,7 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
       .attr("y", (d) => d.y0 ?? 0)
       .attr("width", (d) => (d.x1 ?? 0) - (d.x0 ?? 0))
       .attr("height", (d) => Math.max(1, (d.y1 ?? 0) - (d.y0 ?? 0)))
-      .attr("fill", (d) => getNodeColor(d.name))
+      .attr("fill", (d) => getNodeColor(d as unknown as SankeyNodeExtra))
       .attr("rx", 4)
       .attr("opacity", 0.9)
       .append("title")
@@ -262,7 +265,7 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
       .attr("text-anchor", (d) =>
         (d.x0 ?? 0) < width / 2 ? "start" : "end"
       )
-      .attr("fill", "#f0f0f5")
+      .attr("fill", textColor)
       .attr("font-size", "12px")
       .attr("font-weight", "500")
       .text((d) => `${d.name} ($${(d.value ?? 0).toLocaleString()})`);

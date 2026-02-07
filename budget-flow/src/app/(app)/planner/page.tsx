@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import {
   Calendar,
   Plus,
@@ -16,6 +17,7 @@ import {
   AlertCircle,
   Sparkles,
   RefreshCw,
+  ArrowRight,
   Lightbulb,
   AlertTriangle,
   CheckCircle,
@@ -133,12 +135,51 @@ export default function PlannerPage() {
     return `${diffDays} days`;
   };
 
+  // Mock AI tips for development mode
+  const mockAiTips = {
+    summary: isOverBudget 
+      ? "Your spending is slightly above your daily budget. Let's find some areas to optimize!"
+      : "Great job staying within budget! Here are some tips to save even more.",
+    tips: [
+      {
+        title: "Meal prep on weekends",
+        description: "Cooking meals in batches can save you up to $150/month on food costs compared to eating out.",
+        priority: "high",
+        potentialSavings: 150
+      },
+      {
+        title: "Review subscriptions",
+        description: "Check for unused streaming services or memberships. Many people forget about services charging monthly.",
+        priority: "medium",
+        potentialSavings: 50
+      },
+      {
+        title: "Use cashback apps",
+        description: "Apps like Rakuten or Honey can give you 1-5% back on purchases you're already making.",
+        priority: "low",
+        potentialSavings: 30
+      }
+    ],
+    encouragement: upcomingEvents.length > 0 
+      ? `You're planning ahead for ${upcomingEvents.length} upcoming event${upcomingEvents.length > 1 ? 's' : ''}—that's smart budgeting!`
+      : "Starting to track your spending is the first step to financial freedom. Keep it up!"
+  };
+
   // Fetch AI tips
   const fetchAiTips = useCallback(async () => {
     setAiLoading(true);
     setAiError(null);
     
-    // Build context for AI
+    // Use mock data in development to avoid API calls
+    if (process.env.NODE_ENV === "development") {
+      // Simulate network delay for realistic UX
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setAiTips(mockAiTips);
+      setAiLoading(false);
+      return;
+    }
+    
+    // Build context for AI (production only)
     const spendingSummary = {
       avgDaily7Days: avgDailySpending.toFixed(2),
       baseDailyBudget: budgetInfo.dailyBudget.toFixed(2),
@@ -190,21 +231,46 @@ export default function PlannerPage() {
     } finally {
       setAiLoading(false);
     }
-  }, [avgDailySpending, budgetInfo, daysRemaining, isOverBudget, upcomingEvents, dailySpending]);
+  }, [avgDailySpending, budgetInfo, daysRemaining, isOverBudget, upcomingEvents, dailySpending, mockAiTips]);
 
-  // Fetch AI tips on first render
+  // Fetch AI tips only after dailySpending is loaded
   useEffect(() => {
-    fetchAiTips();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (dailySpending.length > 0) {
+      fetchAiTips();
+    }
+  }, [dailySpending.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show loading state while data loads
+  if (dailySpending.length === 0) {
+    return (
+      <div className="min-h-screen bg-bg-primary p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-accent-green border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-text-secondary">Loading spending data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg-primary p-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-text-primary mb-2">Budget Planner</h1>
-        <p className="text-text-secondary">
-          Track spending patterns and plan for upcoming expenses
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-text-primary mb-2">Budget Planner</h1>
+          <p className="text-text-secondary">
+            Track spending patterns and plan for upcoming expenses
+          </p>
+        </div>
+
+        <Link
+          href="/strategy"
+          className="shrink-0 inline-flex items-center gap-2 rounded-xl px-4 py-2 bg-gradient-to-br from-accent-purple/20 to-accent-blue/20 border border-accent-purple/30 hover:from-accent-purple/30 hover:to-accent-blue/30 transition-all text-text-primary"
+        >
+          <Sparkles className="w-4 h-4 text-accent-purple" />
+          <span className="text-sm font-semibold">See more strategies</span>
+          <ArrowRight className="w-4 h-4 text-text-secondary" />
+        </Link>
       </div>
 
       {/* Budget Overview Cards */}

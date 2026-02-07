@@ -28,12 +28,15 @@ export interface BudgetData {
   isLoading: boolean;
   isUsingMockData: boolean;
   updateIncome: (income: number) => void;
+  addCategory: (category: SpendingCategory) => void;
+  removeCategory: (name: string) => void;
+  updateCategoryColor: (name: string, color: string) => void;
   updateCategory: (name: string, amount: number) => void;
   updateSubcategory: (categoryName: string, subcategoryName: string, amount: number) => void;
 }
 
 export function useBudgetData(userId?: string): BudgetData {
-  const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "updateCategory" | "updateSubcategory">>({
+  const [state, setState] = useState<Omit<BudgetData, "updateIncome" | "addCategory" | "removeCategory" | "updateCategoryColor" | "updateCategory" | "updateSubcategory">>({
     categories: [],
     income: 0,
     monthlySpending: [],
@@ -44,6 +47,30 @@ export function useBudgetData(userId?: string): BudgetData {
 
   const updateIncome = (income: number) => {
     setState((prev) => ({ ...prev, income }));
+  };
+
+  const addCategory = (category: SpendingCategory) => {
+    setState((prev) => {
+      const exists = prev.categories.some(
+        (c) => c.name.trim().toLowerCase() === category.name.trim().toLowerCase()
+      );
+      if (exists) return prev;
+      return { ...prev, categories: [...prev.categories, category] };
+    });
+  };
+
+  const removeCategory = (name: string) => {
+    setState((prev) => ({
+      ...prev,
+      categories: prev.categories.filter((c) => c.name !== name),
+    }));
+  };
+
+  const updateCategoryColor = (name: string, color: string) => {
+    setState((prev) => ({
+      ...prev,
+      categories: prev.categories.map((c) => (c.name === name ? { ...c, color } : c)),
+    }));
   };
 
   const updateCategory = (name: string, amount: number) => {
@@ -152,5 +179,5 @@ export function useBudgetData(userId?: string): BudgetData {
     };
   }, [userId]);
 
-  return { ...state, updateIncome, updateCategory, updateSubcategory };
+  return { ...state, updateIncome, addCategory, removeCategory, updateCategoryColor, updateCategory, updateSubcategory };
 }
