@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: brian
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: budgetflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brian -d budgetflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://brian:root@db:5432/budgetflow"
+      NEXTAUTH_SECRET: "LXzTcl/R0y2Dgsx854s4jSdAs2SaQKaCceiDX5i83Y0="
+      NEXTAUTH_URL: "http://localhost:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
