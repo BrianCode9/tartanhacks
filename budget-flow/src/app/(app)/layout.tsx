@@ -5,9 +5,5 @@ export default function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex">
-      <AppShell>{children}</AppShell>
-    </div>
-  );
+  return <AppShell>{children}</AppShell>;
 }

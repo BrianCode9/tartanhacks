@@ -10,7 +10,10 @@ import {
   Wallet,
   PanelLeftClose,
   PanelLeftOpen,
+  Sun,
+  Moon,
 } from "lucide-react";
+import { useTheme } from "./ThemeProvider";
 
 const navItems = [
   { href: "/dashboard", label: "Budget Flow", icon: LayoutDashboard },
@@ -25,6 +28,7 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { theme, toggleTheme, mounted } = useTheme();
 
   return (
     <aside
@@ -34,7 +38,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       {/* Logo */}
       <div className="p-4 border-b border-border-main flex items-center justify-between">
-        <Link href="/dashboard" className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+        <Link href="/" className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
           <div className="w-10 h-10 rounded-xl bg-accent-green/20 flex items-center justify-center flex-shrink-0">
             <Wallet className="w-5 h-5 text-accent-green" />
           </div>
@@ -91,6 +95,24 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Theme toggle */}
+      {mounted && (
+        <div className={`p-2 ${collapsed ? "flex justify-center" : "px-3"}`}>
+          <button
+            onClick={toggleTheme}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card transition-all duration-200 ${collapsed ? "justify-center" : "w-full"}`}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5 flex-shrink-0" />
+            ) : (
+              <Moon className="w-5 h-5 flex-shrink-0" />
+            )}
+          {!collapsed && <span className="font-medium">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>}
+          </button>
+        </div>
+      )}
 
       {/* User section */}
       <div className="p-2 border-t border-border-main">
