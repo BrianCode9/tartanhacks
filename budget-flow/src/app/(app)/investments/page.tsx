@@ -22,6 +22,8 @@ import { useBudgetData } from "@/lib/use-budget-data";
 import AISavingsAdvice, { preloadAISavingsAdvice } from "@/components/AISavingsAdvice";
 import InvestingEducation from "@/components/InvestingEducation";
 import MarketSnapshot from "@/components/MarketSnapshot";
+import CompoundInterestCalculator from "@/components/CompoundInterestCalculator";
+import InvestingQuiz from "@/components/InvestingQuiz";
 
 type RiskLevel = "conservative" | "moderate" | "aggressive";
 
@@ -307,42 +309,48 @@ export default function InvestmentsPage() {
                             })}
                         </div>
                     </div>
-
-                    {/* Education & Market Grid */}
-                    <div>
-                        <h2 className="text-lg font-semibold text-text-primary mb-4">Learn More</h2>
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <InvestingEducation />
-                            <MarketSnapshot />
-                        </div>
-                    </div>
-
-                    {/* Quick Tips */}
-                    <div className="bg-bg-card border border-border-main rounded-xl p-6">
-                        <h2 className="text-lg font-semibold text-text-primary mb-4">Quick Tips</h2>
-                        <div className="space-y-3 text-sm">
-                            <div className="flex items-start gap-3">
-                                <ArrowRight className="w-4 h-4 text-accent-green mt-0.5 shrink-0" />
-                                <p className="text-text-secondary">
-                                    <span className="text-text-primary font-medium">Start with an emergency fund.</span> Aim for 3-6 months of expenses before investing.
-                                </p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <ArrowRight className="w-4 h-4 text-accent-blue mt-0.5 shrink-0" />
-                                <p className="text-text-secondary">
-                                    <span className="text-text-primary font-medium">Automate your savings.</span> Set up automatic transfers on payday.
-                                </p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <ArrowRight className="w-4 h-4 text-accent-purple mt-0.5 shrink-0" />
-                                <p className="text-text-secondary">
-                                    <span className="text-text-primary font-medium">Time in market beats timing the market.</span> Consistent investing wins long-term.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
                 </>
             )}
+
+            {/* Tools & Education - Always Visible */}
+            <div>
+                <h2 className="text-lg font-semibold text-text-primary mb-4">Financial Tools & Knowledge</h2>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    <CompoundInterestCalculator />
+                    <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <MarketSnapshot />
+                            <InvestingQuiz />
+                        </div>
+                        <InvestingEducation />
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Tips - Always Visible */}
+            <div className="bg-bg-card border border-border-main rounded-xl p-6">
+                <h2 className="text-lg font-semibold text-text-primary mb-4">Quick Tips</h2>
+                <div className="space-y-3 text-sm">
+                    <div className="flex items-start gap-3">
+                        <ArrowRight className="w-4 h-4 text-accent-green mt-0.5 shrink-0" />
+                        <p className="text-text-secondary">
+                            <span className="text-text-primary font-medium">Start with an emergency fund.</span> Aim for 3-6 months of expenses before investing.
+                        </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <ArrowRight className="w-4 h-4 text-accent-blue mt-0.5 shrink-0" />
+                        <p className="text-text-secondary">
+                            <span className="text-text-primary font-medium">Automate your savings.</span> Set up automatic transfers on payday.
+                        </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <ArrowRight className="w-4 h-4 text-accent-purple mt-0.5 shrink-0" />
+                        <p className="text-text-secondary">
+                            <span className="text-text-primary font-medium">Time in market beats timing the market.</span> Consistent investing wins long-term.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
