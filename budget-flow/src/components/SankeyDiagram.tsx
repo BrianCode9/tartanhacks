@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
-import { sankey, sankeyLinkHorizontal, SankeyNode, SankeyLink } from "d3-sankey";
+import { sankey, sankeyLinkHorizontal, sankeyCenter, SankeyNode, SankeyLink } from "d3-sankey";
 
 interface SankeyNodeExtra {
   name: string;
@@ -13,21 +13,11 @@ interface SankeyData {
   links: { source: number; target: number; value: number }[];
 }
 
-const categoryColors: Record<string, string> = {
-  Income: "#10b981",
-  Housing: "#6366f1",
-  "Food & Dining": "#10b981",
-  Transportation: "#f59e0b",
-  Entertainment: "#ec4899",
-  Shopping: "#8b5cf6",
-  Health: "#ef4444",
-  Savings: "#14b8a6",
-};
+// Use D3's category10 scheme to match Nivo's default
+const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
 
 function getNodeColor(name: string): string {
-  if (categoryColors[name]) return categoryColors[name];
-  // For subcategories, find parent color
-  return "#6366f1";
+  return colorScale(name);
 }
 
 export default function SankeyDiagram({ data }: { data: SankeyData }) {
@@ -66,29 +56,75 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
 
     const { width, height } = dimensions;
     const margin = { top: 20, right: 30, bottom: 20, left: 30 };
+    const nodePadding = 10;
 
     const sankeyGenerator = sankey<SankeyNodeExtra, object>()
       .nodeId((d: SankeyNode<SankeyNodeExtra, object>) => d.index as number)
-      .nodeWidth(20)
-      .nodePadding(14)
+      .nodeAlign(sankeyCenter)
+      .nodeWidth(36)
+      .nodePadding(nodePadding)
       .extent([
         [margin.left, margin.top],
         [width - margin.right, height - margin.bottom],
       ]);
 
+    // Generate layout
     const sankeyData = sankeyGenerator({
       nodes: data.nodes.map((d) => ({ ...d })),
       links: data.links.map((d) => ({ ...d })),
     });
 
-    // Draw links
-    svg
+    // --- Manual Centering of Layers ---
+    const columns = new Map<number, any[]>();
+    sankeyData.nodes.forEach((node: any) => {
+      const x = Math.round(node.x0 ?? 0);
+      if (!columns.has(x)) columns.set(x, []);
+      columns.get(x)?.push(node);
+    });
+
+    columns.forEach((nodesInCol) => {
+      if (!nodesInCol.length) return;
+
+      let minY = Infinity;
+      let maxY = -Infinity;
+      nodesInCol.forEach(n => {
+        minY = Math.min(minY, n.y0);
+        maxY = Math.max(maxY, n.y1);
+      });
+
+      const contentHeight = maxY - minY;
+      const availableHeight = height - margin.top - margin.bottom;
+      const targetY = margin.top + (availableHeight - contentHeight) / 2;
+      const dy = targetY - minY;
+
+      if (Math.abs(dy) > 1) {
+        nodesInCol.forEach(n => {
+          n.y0 += dy;
+          n.y1 += dy;
+        });
+
+        // Adjust ONLY links connected to these specific nodes
+        sankeyData.links.forEach((link: any) => {
+          if (nodesInCol.includes(link.source)) {
+            link.y0 += dy;
+          }
+          if (nodesInCol.includes(link.target)) {
+            link.y1 += dy;
+          }
+        });
+      }
+    });
+
+    const linkPath = sankeyLinkHorizontal<SankeyNodeExtra, object>();
+
+    const links = svg
       .append("g")
+      .attr("fill", "none")
+      .attr("stroke-opacity", 0.3)
       .selectAll("path")
       .data(sankeyData.links)
       .join("path")
-      .attr("d", sankeyLinkHorizontal())
-      .attr("fill", "none")
+      .attr("d", linkPath)
       .attr(
         "stroke",
         (d: SankeyLink<SankeyNodeExtra, object>) => {
@@ -96,7 +132,6 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
           return getNodeColor(sourceNode.name);
         }
       )
-      .attr("stroke-opacity", 0.3)
       .attr("stroke-width", (d: SankeyLink<SankeyNodeExtra, object>) =>
         Math.max(1, d.width || 0)
       )
@@ -120,54 +155,117 @@ export default function SankeyDiagram({ data }: { data: SankeyData }) {
         setTooltip((t) => ({ ...t, show: false }));
       });
 
-    // Draw nodes
-    const nodeGroup = svg
+    const node = svg
       .append("g")
-      .selectAll("g")
+      .selectAll<SVGGElement, SankeyNode<SankeyNodeExtra, object>>("g")
       .data(sankeyData.nodes)
-      .join("g");
+      .join("g")
+      .style("cursor", "grab")
+      .call(
+        d3
+          .drag<SVGGElement, SankeyNode<SankeyNodeExtra, object>>()
+          .subject((event, d) => d)
+          .on("start", function (event, d) {
+            d3.select(this).raise().style("cursor", "grabbing");
 
-    nodeGroup
+            // Capture Relative Offsets for ALL links
+            // This ensures we know exactly where each link should attach to its node
+            sankeyData.links.forEach((link: any) => {
+              link._sourceOffsetY = link.y0 - link.source.y0;
+              link._targetOffsetY = link.y1 - link.target.y0;
+            });
+          })
+          .on("drag", function (event, d) {
+            // 1. Determine requested position (for sorting)
+            // UNCLAMPED event.y allows sorting outside bounds (easy swap to top/bottom)
+            const requestedY = event.y;
+
+            // 2. Identify relevant column
+            const columnNodes = sankeyData.nodes.filter((n: any) => Math.abs(n.x0 - (d.x0 ?? 0)) < 1);
+
+            // 3. Sort based on requestedY
+            columnNodes.sort((a: any, b: any) => {
+              const aY = (a === d) ? requestedY : (a.y0 ?? 0);
+              const bY = (b === d) ? requestedY : (b.y0 ?? 0);
+              return aY - bY;
+            });
+
+            // 4. Calculate total height for centering
+            let totalHeight = 0;
+            columnNodes.forEach((n: any) => {
+              totalHeight += (n.y1 - n.y0) + nodePadding;
+            });
+            totalHeight -= nodePadding;
+
+            // 5. Determine starting Y for the column
+            let startY = margin.top + (height - margin.top - margin.bottom - totalHeight) / 2;
+
+            // 6. Apply strict stacking
+            columnNodes.forEach((n: any) => {
+              const h = (n.y1 - n.y0);
+              n.y0 = startY;
+              n.y1 = startY + h;
+
+              // IMPORTANT: Since we moved n.y0, we MUST update all links attached to n
+              // We do this globally below using the captured offsets
+
+              startY += h + nodePadding;
+            });
+
+            // 7. Update DOM for Nodes
+            node
+              .filter((n: any) => Math.abs(n.x0 - (d.x0 ?? 0)) < 1)
+              .select("rect")
+              .attr("y", (n: any) => n.y0);
+
+            node
+              .filter((n: any) => Math.abs(n.x0 - (d.x0 ?? 0)) < 1)
+              .select("text")
+              .attr("y", (n: any) => (n.y0 + n.y1) / 2);
+
+            // 8. Update Links based on new Node positions
+            // We use the stored offsets to ensure rigid attachment
+            sankeyData.links.forEach((link: any) => {
+              if (link._sourceOffsetY !== undefined) {
+                link.y0 = link.source.y0 + link._sourceOffsetY;
+              }
+              if (link._targetOffsetY !== undefined) {
+                link.y1 = link.target.y0 + link._targetOffsetY;
+              }
+            });
+
+            links.attr("d", linkPath);
+          })
+      );
+
+    node
       .append("rect")
-      .attr("x", (d: SankeyNode<SankeyNodeExtra, object>) => d.x0 || 0)
-      .attr("y", (d: SankeyNode<SankeyNodeExtra, object>) => d.y0 || 0)
-      .attr(
-        "width",
-        (d: SankeyNode<SankeyNodeExtra, object>) => (d.x1 || 0) - (d.x0 || 0)
-      )
-      .attr(
-        "height",
-        (d: SankeyNode<SankeyNodeExtra, object>) =>
-          Math.max(1, (d.y1 || 0) - (d.y0 || 0))
-      )
-      .attr("fill", (d: SankeyNode<SankeyNodeExtra, object>) =>
-        getNodeColor(d.name)
-      )
+      .attr("x", (d) => d.x0 ?? 0)
+      .attr("y", (d) => d.y0 ?? 0)
+      .attr("width", (d) => (d.x1 ?? 0) - (d.x0 ?? 0))
+      .attr("height", (d) => Math.max(1, (d.y1 ?? 0) - (d.y0 ?? 0)))
+      .attr("fill", (d) => getNodeColor(d.name))
       .attr("rx", 4)
-      .attr("opacity", 0.9);
+      .attr("opacity", 0.9)
+      .append("title")
+      .text((d) => `${d.name}\n$${d.value?.toLocaleString()}`);
 
-    // Node labels
-    nodeGroup
+    node
       .append("text")
-      .attr("x", (d: SankeyNode<SankeyNodeExtra, object>) => {
-        const x0 = d.x0 || 0;
-        const x1 = d.x1 || 0;
-        return x0 < dimensions.width / 2 ? x1 + 8 : x0 - 8;
+      .attr("x", (d) => {
+        const x0 = d.x0 ?? 0;
+        const x1 = d.x1 ?? 0;
+        return x0 < width / 2 ? x1 + 8 : x0 - 8;
       })
-      .attr("y", (d: SankeyNode<SankeyNodeExtra, object>) =>
-        ((d.y0 || 0) + (d.y1 || 0)) / 2
-      )
+      .attr("y", (d) => ((d.y0 ?? 0) + (d.y1 ?? 0)) / 2)
       .attr("dy", "0.35em")
-      .attr("text-anchor", (d: SankeyNode<SankeyNodeExtra, object>) =>
-        (d.x0 || 0) < dimensions.width / 2 ? "start" : "end"
+      .attr("text-anchor", (d) =>
+        (d.x0 ?? 0) < width / 2 ? "start" : "end"
       )
       .attr("fill", "#f0f0f5")
       .attr("font-size", "12px")
       .attr("font-weight", "500")
-      .text(
-        (d: SankeyNode<SankeyNodeExtra, object>) =>
-          `${d.name} ($${(d.value || 0).toLocaleString()})`
-      );
+      .text((d) => `${d.name} ($${(d.value ?? 0).toLocaleString()})`);
   }, [data, dimensions]);
 
   return (
