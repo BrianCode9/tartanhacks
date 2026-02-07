@@ -21,11 +21,11 @@ import { useUser } from "@/lib/user-context";
 
 const navItems = [
   { href: "/dashboard", label: "Budget Flow", icon: LayoutDashboard },
-  { href: "/history", label: "History", icon: CalendarDays },
+  { href: "/statistics", label: "Statistics", icon: BarChart3 },
   { href: "/strategy", label: "Strategy", icon: GitBranch },
   { href: "/debt-payoff", label: "Debt Payoff", icon: Landmark },
-  { href: "/statistics", label: "Statistics", icon: BarChart3 },
   { href: "/investments", label: "Savings", icon: TrendingUp },
+  { href: "/history", label: "History", icon: CalendarDays },
 ];
 
 interface SidebarProps {
