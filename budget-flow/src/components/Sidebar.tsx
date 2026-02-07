@@ -13,11 +13,13 @@ import {
   PanelLeftOpen,
   Sun,
   Moon,
+  CalendarDays,
 } from "lucide-react";
 import { useTheme } from "./ThemeProvider";
 
 const navItems = [
   { href: "/dashboard", label: "Budget Flow", icon: LayoutDashboard },
+  { href: "/planner", label: "Planner", icon: CalendarDays },
   { href: "/strategy", label: "Strategy", icon: GitBranch },
   { href: "/statistics", label: "Statistics", icon: BarChart3 },
   { href: "/investments", label: "Investments", icon: TrendingUp },
