@@ -158,7 +158,8 @@ function DebtDetailCard({ data, onClose }: DetailCardProps) {
   const Icon = debtTypeIcons[data.type];
 
   return (
-    <div className="absolute top-4 right-4 z-50 w-80 animate-in fade-in slide-in-from-right-4 duration-200">
+    // Use fixed positioning so the card isn't clipped by the ReactFlow viewport container.
+    <div className="fixed top-4 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] overflow-auto animate-in fade-in slide-in-from-right-4 duration-200">
       <div
         className={`${config.bg} border-2 ${config.border} rounded-2xl p-5 shadow-2xl backdrop-blur-md`}
       >
@@ -512,7 +513,7 @@ export default function DebtGraph({ debts, schedule, strategy, onOrderChange }: 
   }, []);
 
   return (
-    <div className="w-full h-full rounded-xl overflow-hidden border border-border-main relative">
+    <div className="w-full h-full rounded-xl border border-border-main relative">
       {/* Custom mode indicator */}
       {isCustomMode && (
         <div className="absolute top-3 left-3 z-40 flex items-center gap-4">
@@ -527,40 +528,43 @@ export default function DebtGraph({ debts, schedule, strategy, onOrderChange }: 
         </div>
       )}
 
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={isCustomMode ? onEdgesChange : undefined}
-        onNodeClick={onNodeClick}
-        onPaneClick={onPaneClick}
-        onConnect={isCustomMode ? onConnect : undefined}
-        onReconnectStart={isCustomMode ? onReconnectStart : undefined}
-        onReconnect={isCustomMode ? onReconnect : undefined}
-        onReconnectEnd={isCustomMode ? onReconnectEnd : undefined}
-        onEdgeClick={isCustomMode ? onEdgeClick : undefined}
-        nodeTypes={nodeTypes}
-        connectionMode={ConnectionMode.Loose}
-        fitView
-        fitViewOptions={{ padding: 0.3 }}
-        minZoom={0.3}
-        maxZoom={2}
-        nodesDraggable={true}
-        edgesReconnectable={isCustomMode}
-        proOptions={{ hideAttribution: true }}
-        connectionLineStyle={isCustomMode ? { stroke: "#6366f1", strokeWidth: 2 } : undefined}
-      >
-        <Background color="#2a2d3a" gap={20} size={1} />
-        <Controls />
-        <MiniMap
-          nodeColor={(node) => {
-            const data = node.data as unknown as DebtNodeData;
-            const config = riskColorConfig[data?.riskColor || "green"];
-            return config?.accent || "#10b981";
-          }}
-          maskColor="rgba(10, 11, 16, 0.8)"
-        />
-      </ReactFlow>
+      {/* Keep ReactFlow clipped, but allow overlays (like the detail card) to escape. */}
+      <div className="absolute inset-0 rounded-xl overflow-hidden z-0">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={isCustomMode ? onEdgesChange : undefined}
+          onNodeClick={onNodeClick}
+          onPaneClick={onPaneClick}
+          onConnect={isCustomMode ? onConnect : undefined}
+          onReconnectStart={isCustomMode ? onReconnectStart : undefined}
+          onReconnect={isCustomMode ? onReconnect : undefined}
+          onReconnectEnd={isCustomMode ? onReconnectEnd : undefined}
+          onEdgeClick={isCustomMode ? onEdgeClick : undefined}
+          nodeTypes={nodeTypes}
+          connectionMode={ConnectionMode.Loose}
+          fitView
+          fitViewOptions={{ padding: 0.3 }}
+          minZoom={0.3}
+          maxZoom={2}
+          nodesDraggable={true}
+          edgesReconnectable={isCustomMode}
+          proOptions={{ hideAttribution: true }}
+          connectionLineStyle={isCustomMode ? { stroke: "#6366f1", strokeWidth: 2 } : undefined}
+        >
+          <Background color="#2a2d3a" gap={20} size={1} />
+          <Controls />
+          <MiniMap
+            nodeColor={(node) => {
+              const data = node.data as unknown as DebtNodeData;
+              const config = riskColorConfig[data?.riskColor || "green"];
+              return config?.accent || "#10b981";
+            }}
+            maskColor="rgba(10, 11, 16, 0.8)"
+          />
+        </ReactFlow>
+      </div>
 
       {selectedNode && (
         <DebtDetailCard
