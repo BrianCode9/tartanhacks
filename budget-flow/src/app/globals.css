@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0b10;
+  --bg-secondary: #12131a;
+  --bg-card: #1a1c25;
+  --bg-card-hover: #22242e;
+  --border-color: #2a2d3a;
+  --text-primary: #f0f0f5;
+  --text-secondary: #9ca3af;
+  --accent-green: #10b981;
+  --accent-blue: #6366f1;
+  --accent-purple: #8b5cf6;
+  --accent-pink: #ec4899;
+  --accent-yellow: #f59e0b;
+  --accent-red: #ef4444;
+  --accent-teal: #14b8a6;
+}
+
+@theme inline {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-hover: var(--bg-card-hover);
+  --color-border-main: var(--border-color);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent-green: var(--accent-green);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-pink: var(--accent-pink);
+  --color-accent-yellow: var(--accent-yellow);
+  --color-accent-red: var(--accent-red);
+  --color-accent-teal: var(--accent-teal);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3d4a;
+}
+
+/* React Flow overrides */
+.react-flow__background {
+  background: var(--bg-card) !important;
+}
+
+.react-flow__minimap {
+  background: var(--bg-secondary) !important;
+}
+
+.react-flow__controls button {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.react-flow__controls button:hover {
+  background: var(--bg-card-hover) !important;
+}
